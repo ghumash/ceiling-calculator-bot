@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="header">
+        <h1>СМЕТА НА НАТЯЖНОЙ ПОТОЛОК</h1>
+        <p>Дата: {{ date }}</p>
+        <p>Номер расчёта: #{{ calculation_id }}</p>
+    </div>
+
+    <div class="section">
+        <h2>ПАРАМЕТРЫ ПОМЕЩЕНИЯ</h2>
+        <ul>
+            <li>Площадь: {{ area }} м²</li>
+            <li>Периметр: {{ perimeter }} пог.м</li>
+            <li>Количество углов: {{ corners }}</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>КОМПЛЕКТАЦИЯ И СТОИМОСТЬ</h2>
+        
+        <div class="item">
+            <h3>1. Полотно</h3>
+            <p>{{ fabric_type }} — {{ fabric_price }} ₽/м²</p>
+            <p>Площадь: {{ area }} м²</p>
+            <p class="subtotal">ИТОГО: {{ "%.0f"|format(fabric_total) }} ₽</p>
+        </div>
+
+        <div class="item">
+            <h3>2. Профили</h3>
+            <p>{{ profile_type }} — {{ profile_price }} ₽/пог.м</p>
+            <p>Периметр: {{ perimeter }} пог.м</p>
+            <p>Базовая стоимость: {{ "%.0f"|format(profile_base) }} ₽</p>
+            {% if extra_corners > 0 %}
+            <p>Доп. углы ({{ extra_corners }} шт × {{ corner_price }} ₽): {{ "%.0f"|format(corners_total) }} ₽</p>
+            {% endif %}
+            <p class="subtotal">ИТОГО: {{ "%.0f"|format(profile_total) }} ₽</p>
+        </div>
+
+        {% if cornices %}
+        <div class="item">
+            <h3>3. Карнизы</h3>
+            <p>{{ cornice_type }}</p>
+            <p class="subtotal">ИТОГО: {{ "%.0f"|format(cornice_total) }} ₽</p>
+        </div>
+        {% endif %}
+
+        {% if spotlights > 0 or chandeliers > 0 or ceramic_area > 0 %}
+        <div class="item">
+            <h3>4. Освещение</h3>
+            {% if spotlights > 0 %}
+            <p>Точечные светильники: {{ spotlights }} шт × 513 ₽ = {{ "%.0f"|format(spotlights_total) }} ₽</p>
+            {% endif %}
+            {% if ceramic_area > 0 %}
+            <p>Керамогранит: {{ ceramic_area }} пог.м × 615 ₽ = {{ "%.0f"|format(ceramic_total) }} ₽</p>
+            {% endif %}
+            {% if chandeliers > 0 %}
+            <p>Люстры: {{ chandeliers }} шт × 615 ₽ = {{ "%.0f"|format(chandeliers_total) }} ₽</p>
+            {% endif %}
+            <p class="subtotal">ИТОГО: {{ "%.0f"|format(lighting_total) }} ₽</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="total">
+        <h2>ОБЩАЯ СТОИМОСТЬ: {{ "%.0f"|format(total_cost) }} ₽</h2>
+    </div>
+
+    <div class="footer">
+        <p><strong>⚠️ ВАЖНО:</strong></p>
+        <p>Это предварительный расчёт. Точная стоимость определяется после замера помещения.</p>
+        <br>
+        <p><strong>КОНТАКТЫ</strong></p>
+        <p>Телефон: {{ phone }}</p>
+        <p>Telegram: {{ telegram }}</p>
+    </div>
+</body>
+</html>
+
