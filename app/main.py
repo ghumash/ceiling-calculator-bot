@@ -12,7 +12,6 @@ from app.core.config import settings
 from app.bot.handlers import start, calculation, admin
 from app.bot.middlewares.logging import ChatLoggingMiddleware
 from app.bot.middlewares.admin_notify import AdminNotifyMiddleware
-from app.services.pdf_generator import cleanup_old_pdfs
 
 
 # Загрузка .env
@@ -31,7 +30,6 @@ async def main() -> None:
     logger.info("Starting Ceiling Calculator Bot...")
 
     # Создание необходимых директорий
-    Path("output").mkdir(exist_ok=True)
     Path("chat_logs").mkdir(exist_ok=True)
     Path("static/images/fabrics").mkdir(parents=True, exist_ok=True)
     Path("static/images/profiles").mkdir(parents=True, exist_ok=True)
@@ -55,23 +53,10 @@ async def main() -> None:
 
     logger.info("Bot started successfully!")
 
-    # Запуск фоновой задачи очистки старых PDF
-    async def cleanup_task():
-        """Фоновая задача очистки старых PDF."""
-        while True:
-            try:
-                await cleanup_old_pdfs()
-            except Exception as e:
-                logger.error(f"Ошибка очистки PDF: {e}")
-            await asyncio.sleep(3600)  # Каждый час
-
-    cleanup_task_handle = asyncio.create_task(cleanup_task())
-
     # Запуск polling
     try:
         await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
     finally:
-        cleanup_task_handle.cancel()
         await bot.session.close()
 
 

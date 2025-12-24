@@ -22,6 +22,10 @@ class ChatLoggingMiddleware(BaseMiddleware):
     ) -> Any:
         """Обработка события с логированием."""
         if isinstance(event, Message) and event.text:
+            # Пропускаем сообщения от ботов (кроме пользовательских)
+            if event.from_user.is_bot:
+                return await handler(event, data)
+            
             username = event.from_user.username or event.from_user.first_name
             chat_logger.log_message(
                 user_id=event.from_user.id,

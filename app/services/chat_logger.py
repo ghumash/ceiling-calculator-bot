@@ -19,7 +19,7 @@ class ChatLogger:
             logs_dir: Директория для логов
         """
         self.logs_dir = Path(logs_dir)
-        self.logs_dir.mkdir(exist_ok=True)
+        self.logs_dir.mkdir(parents=True, exist_ok=True)
 
     def log_message(
         self,
@@ -31,12 +31,16 @@ class ChatLogger:
         """Логирует сообщение в файл.
 
         Args:
-            user_id: ID пользователя
+            user_id: ID пользователя (для которого создаётся лог)
             username: Имя пользователя
             message: Текст сообщения
             is_bot: Является ли отправитель ботом
         """
         try:
+            # Убеждаемся, что директория существует
+            self.logs_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Все сообщения логируются в файл пользователя (не бота)
             log_file = self.logs_dir / f"user_{user_id}.txt"
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             sender = "🤖 БОТ" if is_bot else f"👤 {username or f'user_{user_id}'}"

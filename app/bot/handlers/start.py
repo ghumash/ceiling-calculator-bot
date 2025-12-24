@@ -49,5 +49,6 @@ async def start_calculation(callback: CallbackQuery, state: FSMContext) -> None:
     
     from app.bot.handlers.calculation import ask_area
     if callback.message:
-        await ask_area(callback.message, state)
+        # Важно: передаём user_id явно, т.к. callback.message.from_user - это бот
+        await ask_area(callback.message, state, user_id=callback.from_user.id)
 

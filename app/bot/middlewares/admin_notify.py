@@ -59,7 +59,10 @@ class AdminNotifyMiddleware(BaseMiddleware):
                 try:
                     await bot.send_message(admin_id, message)
                 except Exception as e:
-                    logger.warning(f"Не удалось отправить уведомление админу {admin_id}: {e}")
+                    # Игнорируем ошибку, если админ не начал диалог с ботом
+                    error_msg = str(e).lower()
+                    if "chat not found" not in error_msg and "bot was blocked" not in error_msg:
+                        logger.warning(f"Не удалось отправить уведомление админу {admin_id}: {e}")
 
         except Exception as e:
             logger.error(f"Ошибка отправки уведомления админу: {e}")

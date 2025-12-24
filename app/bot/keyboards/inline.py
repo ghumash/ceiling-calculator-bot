@@ -148,7 +148,6 @@ def get_chandeliers_keyboard() -> InlineKeyboardMarkup:
 def get_result_keyboard() -> InlineKeyboardMarkup:
     """Клавиатура для результата расчёта."""
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📄 Получить PDF-смету", callback_data="get_pdf")],
         [
             InlineKeyboardButton(text="🔄 Начать новый расчёт", callback_data="start_calculation"),
             InlineKeyboardButton(text="📞 Связаться с менеджером", callback_data="contact_manager")

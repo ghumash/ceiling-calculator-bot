@@ -36,7 +36,7 @@ async def cmd_stats(message: Message) -> None:
             total_users += 1
             with open(log_file, "r", encoding="utf-8") as f:
                 content = f.read()
-                if "PDF-смету" in content or "ИТОГО:" in content:
+                if "ИТОГО:" in content:
                     total_calculations += 1
 
     stats_text = (
