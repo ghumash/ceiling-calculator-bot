@@ -42,9 +42,12 @@ async def main() -> None:
     # Диспетчер с MemoryStorage
     dp = Dispatcher(storage=MemoryStorage())
 
-    # Подключение middleware
+    # Подключение middleware для всех типов событий
+    # Отключаем уведомления при каждом сообщении - только финальный результат
     dp.message.middleware(ChatLoggingMiddleware())
-    dp.message.middleware(AdminNotifyMiddleware(admin_ids=settings.admin_ids_list))
+    dp.callback_query.middleware(ChatLoggingMiddleware())
+    # AdminNotifyMiddleware отключен - уведомления только при финальном результате
+    # dp.message.middleware(AdminNotifyMiddleware(admin_ids=settings.admin_ids_list))
 
     # Подключение роутеров
     dp.include_router(start.router)

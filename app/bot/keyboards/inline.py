@@ -145,6 +145,13 @@ def get_chandeliers_keyboard() -> InlineKeyboardMarkup:
     ])
 
 
+def get_calculate_keyboard() -> InlineKeyboardMarkup:
+    """Клавиатура для кнопки 'Рассчитать' после всех вопросов."""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="💰 Рассчитать стоимость", callback_data="calculate")]
+    ])
+
+
 def get_result_keyboard() -> InlineKeyboardMarkup:
     """Клавиатура для результата расчёта."""
     return InlineKeyboardMarkup(inline_keyboard=[

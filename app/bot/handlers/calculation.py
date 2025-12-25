@@ -5,7 +5,7 @@ from pathlib import Path
 
 from aiogram import Router, F
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, FSInputFile
 
 from app.bot.states import CalculationStates
 from app.bot.keyboards.inline import (
@@ -18,6 +18,7 @@ from app.bot.keyboards.inline import (
     get_cornice_keyboard,
     get_spotlights_keyboard,
     get_chandeliers_keyboard,
+    get_calculate_keyboard,
     get_result_keyboard,
 )
 from app.templates.messages.texts import (
@@ -39,6 +40,7 @@ from app.templates.messages.texts import (
     CERAMIC_AREA_INVALID_INPUT,
     CHANDELIERS_QUESTION,
     CHANDELIERS_INVALID_INPUT,
+    ALL_QUESTIONS_COMPLETE,
     GENERATING_RESULT,
     format_result_message,
 )
@@ -52,25 +54,17 @@ router = Router()
 
 # ========== ПЛОЩАДЬ ==========
 
-async def ask_area(message: Message, state: FSMContext, user_id: int | None = None) -> None:
-    """Запрашивает площадь помещения.
-    
-    Args:
-        message: Сообщение для ответа
-        state: FSM контекст
-        user_id: ID пользователя (если None, берётся из message.from_user.id)
-    """
+async def ask_area(message: Message, state: FSMContext) -> None:
+    """Запрашивает площадь помещения."""
     await message.answer(
         AREA_QUESTION,
         reply_markup=get_quick_area_keyboard()
     )
     await state.set_state(CalculationStates.waiting_for_area)
     
-    # Используем переданный user_id или берём из message
-    # Важно: callback.message.from_user - это бот, поэтому нужно передавать user_id явно
-    target_user_id = user_id if user_id is not None else message.from_user.id
+    username = message.from_user.username or message.from_user.first_name
     chat_logger.log_message(
-        user_id=target_user_id,
+        user_id=message.from_user.id,
         username="БОТ",
         message=AREA_QUESTION,
         is_bot=True
@@ -83,12 +77,30 @@ async def process_area_callback(callback: CallbackQuery, state: FSMContext) -> N
     await callback.answer()
     
     if callback.data == "area_custom":
-        await callback.message.answer("Введите площадь в м²:")
+        custom_message = "Введите площадь в м²:"
+        await callback.message.answer(custom_message)
         await state.set_state(CalculationStates.waiting_for_area)
+        # Логирование вопроса бота
+        chat_logger.log_message(
+            user_id=callback.from_user.id,
+            username="БОТ",
+            message=custom_message,
+            is_bot=True
+        )
         return
     
     area_value = float(callback.data.split("_")[1])
-    await process_area(callback.message, state, area_value, user_id=callback.from_user.id)
+    # Логирование выбора площади через callback
+    username = callback.from_user.username or callback.from_user.first_name
+    chat_logger.log_message(
+        user_id=callback.from_user.id,
+        username=username,
+        message=f"Площадь: {area_value} м²",
+        is_bot=False
+    )
+    # Временно сохраняем флаг, что логирование уже сделано
+    await state.update_data(_area_logged=True)
+    await process_area(callback.message, state, area_value)
 
 
 @router.message(CalculationStates.waiting_for_area)
@@ -101,35 +113,27 @@ async def process_area_input(message: Message, state: FSMContext) -> None:
             await message.answer(AREA_VALIDATION_ERROR)
             return
         
-        await process_area(message, state, area, user_id=message.from_user.id)
+        await process_area(message, state, area)
         
     except (ValueError, AttributeError):
         await message.answer(AREA_INVALID_INPUT)
 
 
-async def process_area(message: Message, state: FSMContext, area: float, user_id: int | None = None) -> None:
-    """Сохраняет площадь и переходит к следующему шагу.
-    
-    Args:
-        message: Сообщение для ответа
-        state: FSM контекст
-        area: Площадь помещения
-        user_id: ID пользователя (если None, берётся из message.from_user.id)
-    """
+async def process_area(message: Message, state: FSMContext, area: float) -> None:
+    """Сохраняет площадь и переходит к следующему шагу."""
     await state.update_data(area=area)
     
-    target_user_id = user_id if user_id is not None else message.from_user.id
-    username = message.from_user.username or message.from_user.first_name if user_id is None else None
-    if username is None:
-        # Если user_id передан явно, username может быть из другого источника
-        username = f"user_{target_user_id}"
-    
-    chat_logger.log_message(
-        user_id=target_user_id,
-        username=username,
-        message=str(area),
-        is_bot=False
-    )
+    # Логирование для текстового ввода (если не было callback)
+    data = await state.get_data()
+    if not data.get("_area_logged"):
+        username = message.from_user.username or message.from_user.first_name
+        chat_logger.log_message(
+            user_id=message.from_user.id,
+            username=username,
+            message=f"Площадь: {area} м²",
+            is_bot=False
+        )
+    await state.update_data(_area_logged=False)  # Сбрасываем флаг
     
     await message.answer(
         CORNERS_QUESTION,
@@ -138,7 +142,7 @@ async def process_area(message: Message, state: FSMContext, area: float, user_id
     await state.set_state(CalculationStates.waiting_for_corners)
     
     chat_logger.log_message(
-        user_id=target_user_id,
+        user_id=message.from_user.id,
         username="БОТ",
         message=CORNERS_QUESTION,
         is_bot=True
@@ -161,7 +165,7 @@ async def process_corners(callback: CallbackQuery, state: FSMContext) -> None:
     chat_logger.log_message(
         user_id=callback.from_user.id,
         username=username,
-        message=str(corners),
+        message=f"Углов: {corners}",
         is_bot=False
     )
     
@@ -187,12 +191,28 @@ async def process_perimeter_callback(callback: CallbackQuery, state: FSMContext)
     await callback.answer()
     
     if callback.data == "perimeter_custom":
-        await callback.message.answer("Введите периметр в пог.м:")
+        custom_message = "Введите периметр в пог.м:"
+        await callback.message.answer(custom_message)
         await state.set_state(CalculationStates.waiting_for_perimeter)
+        # Логирование вопроса бота
+        chat_logger.log_message(
+            user_id=callback.from_user.id,
+            username="БОТ",
+            message=custom_message,
+            is_bot=True
+        )
         return
     
     perimeter_value = float(callback.data.split("_")[1])
-    await process_perimeter(callback.message, state, perimeter_value, user_id=callback.from_user.id)
+    # Логирование выбора периметра
+    username = callback.from_user.username or callback.from_user.first_name
+    chat_logger.log_message(
+        user_id=callback.from_user.id,
+        username=username,
+        message=f"Периметр: {perimeter_value} пог.м",
+        is_bot=False
+    )
+    await process_perimeter(callback.message, state, perimeter_value)
 
 
 @router.message(CalculationStates.waiting_for_perimeter)
@@ -205,32 +225,22 @@ async def process_perimeter_input(message: Message, state: FSMContext) -> None:
             await message.answer(PERIMETER_VALIDATION_ERROR)
             return
         
-        await process_perimeter(message, state, perimeter, user_id=message.from_user.id)
+        await process_perimeter(message, state, perimeter)
         
     except (ValueError, AttributeError):
         await message.answer(PERIMETER_INVALID_INPUT)
 
 
-async def process_perimeter(message: Message, state: FSMContext, perimeter: float, user_id: int | None = None) -> None:
-    """Сохраняет периметр и переходит к выбору полотна.
-    
-    Args:
-        message: Сообщение для ответа
-        state: FSM контекст
-        perimeter: Периметр помещения
-        user_id: ID пользователя (если None, берётся из message.from_user.id)
-    """
+async def process_perimeter(message: Message, state: FSMContext, perimeter: float) -> None:
+    """Сохраняет периметр и переходит к выбору полотна."""
     await state.update_data(perimeter=perimeter)
     
-    target_user_id = user_id if user_id is not None else message.from_user.id
-    username = message.from_user.username or message.from_user.first_name if user_id is None else None
-    if username is None:
-        username = f"user_{target_user_id}"
-    
+    # Логирование для текстового ввода (если не было callback)
+    username = message.from_user.username or message.from_user.first_name
     chat_logger.log_message(
-        user_id=target_user_id,
+        user_id=message.from_user.id,
         username=username,
-        message=str(perimeter),
+        message=f"Периметр: {perimeter} пог.м",
         is_bot=False
     )
     
@@ -244,7 +254,7 @@ async def process_perimeter(message: Message, state: FSMContext, perimeter: floa
     await state.set_state(CalculationStates.choosing_fabric)
     
     chat_logger.log_message(
-        user_id=target_user_id,
+        user_id=message.from_user.id,
         username="БОТ",
         message=FABRIC_QUESTION,
         is_bot=True
@@ -395,7 +405,7 @@ async def process_cornices_choice(callback: CallbackQuery, state: FSMContext) ->
         )
     else:
         await state.update_data(cornice_type=None, cornice_length=None)
-        await ask_spotlights(callback.message, state, user_id=callback.from_user.id)
+        await ask_spotlights(callback.message, state)
 
 
 async def send_cornice_images(message: Message) -> None:
@@ -445,7 +455,7 @@ async def process_cornice(callback: CallbackQuery, state: FSMContext) -> None:
         )
     else:
         await state.update_data(cornice_length=None)
-        await ask_spotlights(callback.message, state, user_id=callback.from_user.id)
+        await ask_spotlights(callback.message, state)
 
 
 @router.message(CalculationStates.entering_cornice_length)
@@ -468,7 +478,7 @@ async def process_cornice_length(message: Message, state: FSMContext) -> None:
             is_bot=False
         )
         
-        await ask_spotlights(message, state, user_id=message.from_user.id)
+        await ask_spotlights(message, state)
         
     except (ValueError, AttributeError):
         await message.answer("⚠️ Пожалуйста, укажите число.\nНапример: 3.5")
@@ -476,23 +486,17 @@ async def process_cornice_length(message: Message, state: FSMContext) -> None:
 
 # ========== ОСВЕЩЕНИЕ ==========
 
-async def ask_spotlights(message: Message, state: FSMContext, user_id: int | None = None) -> None:
-    """Запрашивает количество светильников.
-    
-    Args:
-        message: Сообщение для ответа
-        state: FSM контекст
-        user_id: ID пользователя (если None, берётся из message.from_user.id)
-    """
+async def ask_spotlights(message: Message, state: FSMContext) -> None:
+    """Запрашивает количество светильников."""
     await message.answer(
         SPOTLIGHTS_QUESTION,
         reply_markup=get_spotlights_keyboard()
     )
     await state.set_state(CalculationStates.entering_spotlights)
     
-    target_user_id = user_id if user_id is not None else message.from_user.id
+    username = message.from_user.username or message.from_user.first_name
     chat_logger.log_message(
-        user_id=target_user_id,
+        user_id=message.from_user.id,
         username="БОТ",
         message=SPOTLIGHTS_QUESTION,
         is_bot=True
@@ -505,12 +509,28 @@ async def process_spotlights_callback(callback: CallbackQuery, state: FSMContext
     await callback.answer()
     
     if callback.data == "spotlights_custom":
-        await callback.message.answer("Введите количество светильников:")
+        custom_message = "Введите количество светильников:"
+        await callback.message.answer(custom_message)
         await state.set_state(CalculationStates.entering_spotlights)
+        # Логирование вопроса бота
+        chat_logger.log_message(
+            user_id=callback.from_user.id,
+            username="БОТ",
+            message=custom_message,
+            is_bot=True
+        )
         return
     
     spotlights_value = int(callback.data.split("_")[1])
-    await process_spotlights(callback.message, state, spotlights_value, user_id=callback.from_user.id)
+    # Логирование выбора светильников
+    username = callback.from_user.username or callback.from_user.first_name
+    chat_logger.log_message(
+        user_id=callback.from_user.id,
+        username=username,
+        message=f"Светильники: {spotlights_value} шт",
+        is_bot=False
+    )
+    await process_spotlights(callback.message, state, spotlights_value)
 
 
 @router.message(CalculationStates.entering_spotlights)
@@ -523,32 +543,22 @@ async def process_spotlights_input(message: Message, state: FSMContext) -> None:
             await message.answer("⚠️ Количество не может быть отрицательным")
             return
         
-        await process_spotlights(message, state, spotlights, user_id=message.from_user.id)
+        await process_spotlights(message, state, spotlights)
         
     except (ValueError, AttributeError):
         await message.answer(SPOTLIGHTS_INVALID_INPUT)
 
 
-async def process_spotlights(message: Message, state: FSMContext, spotlights: int, user_id: int | None = None) -> None:
-    """Сохраняет количество светильников и переходит к керамограниту.
-    
-    Args:
-        message: Сообщение для ответа
-        state: FSM контекст
-        spotlights: Количество светильников
-        user_id: ID пользователя (если None, берётся из message.from_user.id)
-    """
+async def process_spotlights(message: Message, state: FSMContext, spotlights: int) -> None:
+    """Сохраняет количество светильников и переходит к керамограниту."""
     await state.update_data(spotlights=spotlights)
     
-    target_user_id = user_id if user_id is not None else message.from_user.id
-    username = message.from_user.username or message.from_user.first_name if user_id is None else None
-    if username is None:
-        username = f"user_{target_user_id}"
-    
+    # Логирование для текстового ввода (если не было callback)
+    username = message.from_user.username or message.from_user.first_name
     chat_logger.log_message(
-        user_id=target_user_id,
+        user_id=message.from_user.id,
         username=username,
-        message=str(spotlights),
+        message=f"Светильники: {spotlights} шт",
         is_bot=False
     )
     
@@ -559,7 +569,7 @@ async def process_spotlights(message: Message, state: FSMContext, spotlights: in
     await state.set_state(CalculationStates.asking_ceramic)
     
     chat_logger.log_message(
-        user_id=target_user_id,
+        user_id=message.from_user.id,
         username="БОТ",
         message=CERAMIC_QUESTION,
         is_bot=True
@@ -586,7 +596,7 @@ async def process_ceramic_choice(callback: CallbackQuery, state: FSMContext) -> 
         )
     else:
         await state.update_data(ceramic_area=0.0)
-        await ask_chandeliers(callback.message, state, user_id=callback.from_user.id)
+        await ask_chandeliers(callback.message, state)
 
 
 @router.message(CalculationStates.entering_ceramic_area)
@@ -605,33 +615,27 @@ async def process_ceramic_area(message: Message, state: FSMContext) -> None:
         chat_logger.log_message(
             user_id=message.from_user.id,
             username=username,
-            message=str(ceramic_area),
+            message=f"Керамогранит: {ceramic_area} пог.м",
             is_bot=False
         )
         
-        await ask_chandeliers(message, state, user_id=message.from_user.id)
+        await ask_chandeliers(message, state)
         
     except (ValueError, AttributeError):
         await message.answer(CERAMIC_AREA_INVALID_INPUT)
 
 
-async def ask_chandeliers(message: Message, state: FSMContext, user_id: int | None = None) -> None:
-    """Запрашивает количество люстр.
-    
-    Args:
-        message: Сообщение для ответа
-        state: FSM контекст
-        user_id: ID пользователя (если None, берётся из message.from_user.id)
-    """
+async def ask_chandeliers(message: Message, state: FSMContext) -> None:
+    """Запрашивает количество люстр."""
     await message.answer(
         CHANDELIERS_QUESTION,
         reply_markup=get_chandeliers_keyboard()
     )
     await state.set_state(CalculationStates.entering_chandeliers)
     
-    target_user_id = user_id if user_id is not None else message.from_user.id
+    username = message.from_user.username or message.from_user.first_name
     chat_logger.log_message(
-        user_id=target_user_id,
+        user_id=message.from_user.id,
         username="БОТ",
         message=CHANDELIERS_QUESTION,
         is_bot=True
@@ -644,7 +648,15 @@ async def process_chandeliers_callback(callback: CallbackQuery, state: FSMContex
     await callback.answer()
     
     chandeliers_value = int(callback.data.split("_")[1])
-    await process_chandeliers(callback.message, state, chandeliers_value, user_id=callback.from_user.id)
+    # Логирование выбора люстр
+    username = callback.from_user.username or callback.from_user.first_name
+    chat_logger.log_message(
+        user_id=callback.from_user.id,
+        username=username,
+        message=f"Люстры: {chandeliers_value} шт",
+        is_bot=False
+    )
+    await process_chandeliers(callback.message, state, chandeliers_value)
 
 
 @router.message(CalculationStates.entering_chandeliers)
@@ -657,48 +669,65 @@ async def process_chandeliers_input(message: Message, state: FSMContext) -> None
             await message.answer("⚠️ Количество не может быть отрицательным")
             return
         
-        await process_chandeliers(message, state, chandeliers, user_id=message.from_user.id)
+        await process_chandeliers(message, state, chandeliers)
         
     except (ValueError, AttributeError):
         await message.answer(CHANDELIERS_INVALID_INPUT)
 
 
-async def process_chandeliers(message: Message, state: FSMContext, chandeliers: int, user_id: int | None = None) -> None:
-    """Сохраняет количество люстр и показывает результат.
-    
-    Args:
-        message: Сообщение для ответа
-        state: FSM контекст
-        chandeliers: Количество люстр
-        user_id: ID пользователя (если None, берётся из message.from_user.id)
-    """
+async def process_chandeliers(message: Message, state: FSMContext, chandeliers: int) -> None:
+    """Сохраняет количество люстр и показывает кнопку 'Рассчитать'."""
     await state.update_data(chandeliers=chandeliers)
     
-    target_user_id = user_id if user_id is not None else message.from_user.id
-    username = message.from_user.username or message.from_user.first_name if user_id is None else None
-    if username is None:
-        username = f"user_{target_user_id}"
-    
+    # Логирование для текстового ввода (если не было callback)
+    username = message.from_user.username or message.from_user.first_name
     chat_logger.log_message(
-        user_id=target_user_id,
+        user_id=message.from_user.id,
         username=username,
-        message=str(chandeliers),
+        message=f"Люстры: {chandeliers} шт",
         is_bot=False
     )
     
-    await show_result(message, state, user_id=target_user_id)
+    # Показываем кнопку "Рассчитать" вместо автоматического расчёта
+    await message.answer(
+        ALL_QUESTIONS_COMPLETE,
+        reply_markup=get_calculate_keyboard()
+    )
+    await state.set_state(CalculationStates.ready_to_calculate)
+    
+    chat_logger.log_message(
+        user_id=message.from_user.id,
+        username="БОТ",
+        message=ALL_QUESTIONS_COMPLETE,
+        is_bot=True
+    )
+
+
+# ========== РАСЧЁТ ==========
+
+@router.callback_query(F.data == "calculate", CalculationStates.ready_to_calculate)
+async def calculate_result(callback: CallbackQuery, state: FSMContext) -> None:
+    """Обработка нажатия кнопки 'Рассчитать'."""
+    await callback.answer()
+    
+    if callback.message:
+        await show_result(callback.message, state, user=callback.from_user)
 
 
 # ========== РЕЗУЛЬТАТ ==========
 
-async def show_result(message: Message, state: FSMContext, user_id: int | None = None) -> None:
+async def show_result(message: Message, state: FSMContext, user=None) -> None:
     """Показывает результат расчёта.
     
     Args:
         message: Сообщение для ответа
         state: FSM контекст
-        user_id: ID пользователя (если None, берётся из message.from_user.id)
+        user: Пользователь (если None, используется message.from_user)
     """
+    # Определяем пользователя: если передан явно (из callback), используем его, иначе message.from_user
+    actual_user = user if user is not None else message.from_user
+    user_id = actual_user.id
+    
     data = await state.get_data()
     
     # Создание CalculationData
@@ -744,17 +773,41 @@ async def show_result(message: Message, state: FSMContext, user_id: int | None =
     await state.update_data(calculation_data=calc_data.model_dump())
     await state.set_state(CalculationStates.showing_result)
     
-    target_user_id = user_id if user_id is not None else message.from_user.id
     chat_logger.log_message(
-        user_id=target_user_id,
+        user_id=user_id,
         username="БОТ",
         message=result_text,
         is_bot=True
     )
+    
+    # Отправка уведомления админу с полным чатом
+    chat_history = chat_logger.get_chat_history(user_id)
+    total_cost = costs.get("total_cost", 0.0)
+    await notify_admin_calculation_complete(
+        user=actual_user,
+        bot=message.bot,
+        calc_data=calc_data,
+        total_cost=total_cost,
+        chat_history=chat_history
+    )
 
 
-async def notify_admin_calculation_complete(user, bot, calc_data: CalculationData, total_cost: float) -> None:
-    """Отправляет уведомление админам о завершении расчёта."""
+async def notify_admin_calculation_complete(
+    user,
+    bot,
+    calc_data: CalculationData,
+    total_cost: float,
+    chat_history: str
+) -> None:
+    """Отправляет уведомление админам о завершении расчёта с полным чатом.
+
+    Args:
+        user: Объект пользователя Telegram
+        bot: Объект бота
+        calc_data: Данные расчёта
+        total_cost: Итоговая стоимость
+        chat_history: Полная история чата
+    """
     from datetime import datetime
     from app.core.config import settings
     
@@ -762,7 +815,13 @@ async def notify_admin_calculation_complete(user, bot, calc_data: CalculationDat
         return
     
     try:
-        username = user.username or user.first_name
+        # Формируем имя пользователя: username или first_name + last_name
+        if user.username:
+            username = f"@{user.username}"
+        else:
+            name_parts = [user.first_name or "", user.last_name or ""]
+            username = " ".join(filter(None, name_parts)) or f"user_{user.id}"
+        
         user_id = user.id
         date = datetime.now().strftime("%d.%m.%Y %H:%M")
         
@@ -775,23 +834,57 @@ async def notify_admin_calculation_complete(user, bot, calc_data: CalculationDat
             "am1": "Однородный AM1"
         }
         
-        message = (
+        # Формирование сообщения с чатом и результатом
+        cornice_info = ""
+        if calc_data.has_cornices and calc_data.cornice_type:
+            cornice_names = {
+                "pk14_2m": "ПК-14 (2 м)",
+                "pk14_3_2m": "ПК-14 (3.2 м)",
+                "pk14_3_6m": "ПК-14 (3.6 м)",
+                "pk5": f"ПК-5 ({calc_data.cornice_length or 0} пог.м)" if calc_data.cornice_length else "ПК-5",
+                "bp40": f"БП-40 ({calc_data.cornice_length or 0} пог.м)" if calc_data.cornice_length else "БП-40"
+            }
+            cornice_info = f"• Карниз: {cornice_names.get(calc_data.cornice_type, calc_data.cornice_type)}\n"
+        else:
+            cornice_info = "• Карниз: Нет\n"
+        
+        header = (
             "✅ РАСЧЁТ ЗАВЕРШЁН\n\n"
-            f"Пользователь: @{username} (ID: {user_id})\n"
+            f"Пользователь: {username} (ID: {user_id})\n"
             f"Дата: {date}\n"
             f"Сумма: {total_cost:,.0f} ₽\n\n"
             f"Параметры:\n"
             f"• Площадь: {calc_data.area} м²\n"
+            f"• Периметр: {calc_data.perimeter} пог.м\n"
+            f"• Углов: {calc_data.corners}\n"
             f"• Полотно: {fabric_names.get(calc_data.fabric_type, calc_data.fabric_type)}\n"
             f"• Профиль: {profile_names.get(calc_data.profile_type, calc_data.profile_type)}\n"
-            f"• Светильники: {calc_data.spotlights} шт"
+            f"{cornice_info}"
+            f"• Светильники: {calc_data.spotlights} шт\n"
+            f"• Люстры: {calc_data.chandeliers} шт\n"
+            f"• Керамогранит: {calc_data.ceramic_area} пог.м\n\n"
+            f"{'=' * 50}\n"
+            f"📝 ПОЛНАЯ ИСТОРИЯ ЧАТА:\n"
+            f"{'=' * 50}\n\n"
         )
+        
+        full_message = header + chat_history
+        
+        # Telegram ограничивает длину сообщения до 4096 символов
+        max_length = 4096
+        if len(full_message) > max_length:
+            # Если сообщение слишком длинное, обрезаем историю чата
+            available_length = max_length - len(header) - 50  # Запас для "..."
+            truncated_history = chat_history[-available_length:]
+            full_message = header + "...\n" + truncated_history
         
         for admin_id in settings.admin_ids_list:
             try:
-                await bot.send_message(admin_id, message)
+                await bot.send_message(admin_id, full_message)
             except Exception as e:
-                logger.warning(f"Не удалось отправить уведомление админу {admin_id}: {e}")
+                error_msg = str(e).lower()
+                if "chat not found" not in error_msg and "bot was blocked" not in error_msg:
+                    logger.warning(f"Не удалось отправить уведомление админу {admin_id}: {e}")
     except Exception as e:
         logger.error(f"Ошибка отправки уведомления админу: {e}")
 

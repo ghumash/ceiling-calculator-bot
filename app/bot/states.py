@@ -26,6 +26,9 @@ class CalculationStates(StatesGroup):
     entering_ceramic_area = State()
     entering_chandeliers = State()
 
+    # Готовность к расчёту
+    ready_to_calculate = State()
+
     # Результат
     showing_result = State()
 

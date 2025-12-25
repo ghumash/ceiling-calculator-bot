@@ -47,8 +47,11 @@ async def start_calculation(callback: CallbackQuery, state: FSMContext) -> None:
     await callback.answer()
     await state.clear()
     
+    # Очистка истории чата для нового расчёта
+    if callback.from_user:
+        chat_logger.clear_chat_history(callback.from_user.id)
+    
     from app.bot.handlers.calculation import ask_area
     if callback.message:
-        # Важно: передаём user_id явно, т.к. callback.message.from_user - это бот
-        await ask_area(callback.message, state, user_id=callback.from_user.id)
+        await ask_area(callback.message, state)
 
