@@ -4,131 +4,126 @@ from app.core.config import settings
 from app.schemas.calculation import CalculationData
 
 
-def _calculate_fabric_cost(data: CalculationData) -> float:
-    """Рассчитывает стоимость полотна.
+def calculate_area_cost(area: float) -> tuple[float, float]:
+    """Рассчитывает стоимость потолка по площади.
 
     Args:
-        data: Данные расчёта
+        area: Площадь помещения в м²
 
     Returns:
-        Стоимость полотна
+        (area_for_calculation, ceiling_cost)
     """
-    if data.fabric_type == "msd":
-        price_per_m2 = settings.fabric_msd_price
-    elif data.fabric_type == "bauf":
-        price_per_m2 = settings.fabric_bauf_price
-    else:
-        price_per_m2 = 0
+    # Если площадь <= 20м², считаем от 20м²
+    area_for_calculation = max(area, settings.min_area_for_calculation)
+    ceiling_cost = area_for_calculation * settings.ceiling_base_price
 
-    return data.area * price_per_m2
+    return area_for_calculation, ceiling_cost
 
 
-def _calculate_profile_cost(data: CalculationData) -> tuple[float, float, float]:
-    """Рассчитывает стоимость профиля и углов.
+def calculate_profile_cost(area: float, profile_type: str) -> float:
+    """Рассчитывает стоимость профиля.
 
     Args:
-        data: Данные расчёта
+        area: Площадь помещения в м²
+        profile_type: Тип профиля (insert/shadow/floating)
 
     Returns:
-        Кортеж (базовая стоимость профиля, стоимость углов, общая стоимость профиля)
+        Стоимость профиля
     """
-    profile_prices = {
-        "insert": settings.profile_insert_price,
-        "shadow_eco": settings.profile_shadow_eco_price,
-        "shadow_eurokraab": settings.profile_shadow_eurokraab_price,
-        "floating": settings.profile_floating_price,
-        "am1": settings.profile_am1_price,
-    }
-
-    profile_price_per_m = profile_prices.get(data.profile_type, 0)
-    profile_base = data.perimeter * profile_price_per_m
-
-    corners_total = 0.0
-    if data.profile_type == "insert":
-        extra_corners = max(0, data.corners - 4)
-        corners_total = extra_corners * settings.profile_insert_extra_corner_price
-    elif data.profile_type in ["shadow_eurokraab", "floating"]:
-        corner_price = (
-            settings.profile_shadow_eurokraab_corner_price
-            if data.profile_type == "shadow_eurokraab"
-            else settings.profile_floating_corner_price
-        )
-        corners_total = data.corners * corner_price
-
-    profile_total = profile_base + corners_total
-    return profile_base, corners_total, profile_total
-
-
-def _calculate_cornice_cost(data: CalculationData) -> float:
-    """Рассчитывает стоимость карниза.
-
-    Args:
-        data: Данные расчёта
-
-    Returns:
-        Стоимость карниза
-    """
-    if not data.has_cornices or not data.cornice_type:
+    if profile_type == "insert":
         return 0.0
 
-    if data.cornice_type == "pk14_2m":
-        return settings.cornice_pk14_2m_price
-    elif data.cornice_type == "pk14_3_2m":
-        return settings.cornice_pk14_3_2m_price
-    elif data.cornice_type == "pk14_3_6m":
-        return settings.cornice_pk14_3_6m_price
-    elif data.cornice_type == "pk5" and data.cornice_length:
-        return data.cornice_length * settings.cornice_pk5_price
-    elif data.cornice_type == "bp40" and data.cornice_length:
-        return data.cornice_length * settings.cornice_bp40_price
+    # Приблизительный периметр = площадь × 1.4
+    approximate_perimeter = area * settings.perimeter_coefficient
 
-    return 0.0
+    profile_prices = {
+        "shadow": settings.profile_shadow_price,
+        "floating": settings.profile_floating_price,
+    }
+
+    return approximate_perimeter * profile_prices.get(profile_type, 0)
 
 
-def _calculate_lighting_cost(data: CalculationData) -> tuple[float, float, float, float]:
+def calculate_cornice_cost(length: float, cornice_type: str | None) -> float:
+    """Рассчитывает стоимость карнизов.
+
+    Args:
+        length: Длина карнизов в пог.м
+        cornice_type: Тип карниза (pk14/pk5/bp40)
+
+    Returns:
+        Стоимость карнизов
+    """
+    if length == 0 or not cornice_type:
+        return 0.0
+
+    cornice_prices = {
+        "pk14": settings.cornice_pk14_price,
+        "pk5": settings.cornice_pk5_price,
+        "bp40": settings.cornice_bp40_price,
+    }
+
+    return length * cornice_prices.get(cornice_type, 0)
+
+
+def calculate_lighting_cost(spotlights: int, chandeliers: int) -> tuple[float, float]:
     """Рассчитывает стоимость освещения.
 
     Args:
-        data: Данные расчёта
+        spotlights: Количество точечных светильников
+        chandeliers: Количество люстр
 
     Returns:
-        Кортеж (стоимость светильников, керамогранита, люстр, общая стоимость освещения)
+        (spotlights_cost, chandeliers_cost)
     """
-    spotlights_total = data.spotlights * settings.spotlight_price
-    ceramic_total = data.ceramic_area * settings.ceramic_price
-    chandeliers_total = data.chandeliers * settings.chandelier_price
-    lighting_total = spotlights_total + ceramic_total + chandeliers_total
+    spotlights_cost = spotlights * settings.spotlight_price
+    chandeliers_cost = chandeliers * settings.chandelier_price
 
-    return spotlights_total, ceramic_total, chandeliers_total, lighting_total
+    return spotlights_cost, chandeliers_cost
 
 
-def calculate_total_cost(data: CalculationData) -> dict[str, float]:
-    """Рассчитывает полную стоимость натяжного потолка.
+def calculate_total(data: dict) -> CalculationData:
+    """Выполняет полный расчёт стоимости.
 
     Args:
-        data: Данные расчёта
+        data: Словарь с данными от пользователя
 
     Returns:
-        Словарь с детализацией стоимости по категориям
+        CalculationData с полными расчётами
     """
-    fabric_total = _calculate_fabric_cost(data)
-    profile_base, corners_total, profile_total = _calculate_profile_cost(data)
-    cornice_total = _calculate_cornice_cost(data)
-    spotlights_total, ceramic_total, chandeliers_total, lighting_total = _calculate_lighting_cost(
-        data
+    # Площадь и потолок
+    area = data["area"]
+    area_for_calculation, ceiling_cost = calculate_area_cost(area)
+
+    # Профиль
+    profile_type = data["profile_type"]
+    profile_cost = calculate_profile_cost(area, profile_type)
+
+    # Карнизы
+    cornice_length = data.get("cornice_length", 0)
+    cornice_type = data.get("cornice_type")
+    cornice_cost = calculate_cornice_cost(cornice_length, cornice_type)
+
+    # Освещение
+    spotlights = data.get("spotlights", 0)
+    chandeliers = data.get("chandeliers", 0)
+    spotlights_cost, chandeliers_cost = calculate_lighting_cost(spotlights, chandeliers)
+
+    # Итого
+    total_cost = ceiling_cost + profile_cost + cornice_cost + spotlights_cost + chandeliers_cost
+
+    return CalculationData(
+        area=area,
+        area_for_calculation=area_for_calculation,
+        profile_type=profile_type,
+        profile_cost=profile_cost,
+        cornice_length=cornice_length,
+        cornice_type=cornice_type,
+        cornice_cost=cornice_cost,
+        spotlights=spotlights,
+        spotlights_cost=spotlights_cost,
+        chandeliers=chandeliers,
+        chandeliers_cost=chandeliers_cost,
+        ceiling_cost=ceiling_cost,
+        total_cost=total_cost,
     )
-
-    total_cost = fabric_total + profile_total + cornice_total + lighting_total
-
-    return {
-        "fabric_total": fabric_total,
-        "profile_base": profile_base,
-        "corners_total": corners_total,
-        "profile_total": profile_total,
-        "cornice_total": cornice_total,
-        "spotlights_total": spotlights_total,
-        "ceramic_total": ceramic_total,
-        "chandeliers_total": chandeliers_total,
-        "lighting_total": lighting_total,
-        "total_cost": total_cost,
-    }

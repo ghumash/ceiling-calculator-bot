@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class ChatLogger:
-    """Логирует сообщения чата в текстовые файлы и накапливает их в памяти."""
+    """Логирует сообщения чата в текстовые файлы."""
 
     def __init__(self, logs_dir: str = "chat_logs"):
         """Инициализация логгера.
@@ -20,13 +20,11 @@ class ChatLogger:
         """
         self.logs_dir = Path(logs_dir)
         self.logs_dir.mkdir(parents=True, exist_ok=True)
-        # Хранилище сообщений в памяти: {user_id: [{"timestamp": str, "sender": str, "message": str}, ...]}
-        self._chat_history: dict[int, list[dict[str, str]]] = {}
 
     def log_message(
         self, user_id: int, username: Optional[str], message: str, is_bot: bool = False
     ) -> None:
-        """Логирует сообщение в файл и накапливает в памяти.
+        """Логирует сообщение в файл.
 
         Args:
             user_id: ID пользователя
@@ -45,43 +43,18 @@ class ChatLogger:
             # Запись в файл
             with open(log_file, "a", encoding="utf-8") as f:
                 f.write(f"[{timestamp}] {sender}: {message}\n")
-
-            # Накопление в памяти
-            if user_id not in self._chat_history:
-                self._chat_history[user_id] = []
-
-            self._chat_history[user_id].append(
-                {"timestamp": timestamp, "sender": sender, "message": message}
-            )
         except Exception as e:
             logger.error(f"Ошибка логирования: {e}")
 
-    def get_chat_history(self, user_id: int) -> str:
-        """Возвращает весь чат пользователя в виде строки.
-
-        Args:
-            user_id: ID пользователя
-
-        Returns:
-            Строка с историей чата
-        """
-        if user_id not in self._chat_history:
-            return ""
-
-        lines = []
-        for entry in self._chat_history[user_id]:
-            lines.append(f"[{entry['timestamp']}] {entry['sender']}: {entry['message']}")
-
-        return "\n".join(lines)
-
     def clear_chat_history(self, user_id: int) -> None:
-        """Очищает историю чата пользователя из памяти.
+        """Очищает историю чата пользователя (удаляет файл лога).
 
         Args:
             user_id: ID пользователя
         """
-        if user_id in self._chat_history:
-            del self._chat_history[user_id]
+        log_file = self.logs_dir / f"user_{user_id}.txt"
+        if log_file.exists():
+            log_file.unlink()
 
 
 # Глобальный экземпляр
