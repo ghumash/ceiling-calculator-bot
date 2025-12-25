@@ -25,4 +25,3 @@ class CalculationData(BaseModel):
     has_ceramic: bool = Field(default=False, description="Есть ли керамогранит")
     ceramic_area: float = Field(default=0, ge=0, description="Площадь керамогранита в пог.м")
     chandeliers: int = Field(default=0, ge=0, description="Количество люстр")
-

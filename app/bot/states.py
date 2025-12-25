@@ -31,4 +31,3 @@ class CalculationStates(StatesGroup):
 
     # Результат
     showing_result = State()
-

@@ -19,25 +19,16 @@ router = Router()
 async def cmd_start(message: Message, state: FSMContext) -> None:
     """Обработчик команды /start."""
     await state.clear()
-    
+
     username = message.from_user.username or message.from_user.first_name
     chat_logger.log_message(
-        user_id=message.from_user.id,
-        username=username,
-        message="/start",
-        is_bot=False
+        user_id=message.from_user.id, username=username, message="/start", is_bot=False
     )
-    
-    await message.answer(
-        START_MESSAGE,
-        reply_markup=get_start_keyboard()
-    )
-    
+
+    await message.answer(START_MESSAGE, reply_markup=get_start_keyboard())
+
     chat_logger.log_message(
-        user_id=message.from_user.id,
-        username="БОТ",
-        message=START_MESSAGE,
-        is_bot=True
+        user_id=message.from_user.id, username="БОТ", message=START_MESSAGE, is_bot=True
     )
 
 
@@ -46,12 +37,12 @@ async def start_calculation(callback: CallbackQuery, state: FSMContext) -> None:
     """Начало процесса расчёта."""
     await callback.answer()
     await state.clear()
-    
+
     # Очистка истории чата для нового расчёта
     if callback.from_user:
         chat_logger.clear_chat_history(callback.from_user.id)
-    
+
     from app.bot.handlers.calculation import ask_area
+
     if callback.message:
         await ask_area(callback.message, state)
-

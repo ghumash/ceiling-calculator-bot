@@ -3,12 +3,11 @@
 import logging
 from pathlib import Path
 
-from aiogram import Router, F
+from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import Message
 
 from app.core.config import settings
-from app.services.chat_logger import chat_logger
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -128,11 +127,7 @@ async def cmd_broadcast(message: Message) -> None:
             logger.warning(f"Не удалось отправить сообщение пользователю {user_id}: {e}")
             failed += 1
 
-    await message.answer(
-        f"✅ Рассылка завершена\n\n"
-        f"Отправлено: {sent}\n"
-        f"Ошибок: {failed}"
-    )
+    await message.answer(f"✅ Рассылка завершена\n\n" f"Отправлено: {sent}\n" f"Ошибок: {failed}")
 
 
 @router.message(Command("prices"))
@@ -157,4 +152,3 @@ async def cmd_prices(message: Message) -> None:
     )
 
     await message.answer(prices_text)
-

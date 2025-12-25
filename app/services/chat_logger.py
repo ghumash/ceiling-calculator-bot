@@ -24,11 +24,7 @@ class ChatLogger:
         self._chat_history: dict[int, list[dict[str, str]]] = {}
 
     def log_message(
-        self,
-        user_id: int,
-        username: Optional[str],
-        message: str,
-        is_bot: bool = False
+        self, user_id: int, username: Optional[str], message: str, is_bot: bool = False
     ) -> None:
         """Логирует сообщение в файл и накапливает в памяти.
 
@@ -41,7 +37,7 @@ class ChatLogger:
         try:
             # Убеждаемся, что директория существует
             self.logs_dir.mkdir(parents=True, exist_ok=True)
-            
+
             log_file = self.logs_dir / f"user_{user_id}.txt"
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             sender = "🤖 БОТ" if is_bot else f"👤 {username or f'user_{user_id}'}"
@@ -49,16 +45,14 @@ class ChatLogger:
             # Запись в файл
             with open(log_file, "a", encoding="utf-8") as f:
                 f.write(f"[{timestamp}] {sender}: {message}\n")
-            
+
             # Накопление в памяти
             if user_id not in self._chat_history:
                 self._chat_history[user_id] = []
-            
-            self._chat_history[user_id].append({
-                "timestamp": timestamp,
-                "sender": sender,
-                "message": message
-            })
+
+            self._chat_history[user_id].append(
+                {"timestamp": timestamp, "sender": sender, "message": message}
+            )
         except Exception as e:
             logger.error(f"Ошибка логирования: {e}")
 
@@ -73,11 +67,11 @@ class ChatLogger:
         """
         if user_id not in self._chat_history:
             return ""
-        
+
         lines = []
         for entry in self._chat_history[user_id]:
             lines.append(f"[{entry['timestamp']}] {entry['sender']}: {entry['message']}")
-        
+
         return "\n".join(lines)
 
     def clear_chat_history(self, user_id: int) -> None:
@@ -92,4 +86,3 @@ class ChatLogger:
 
 # Глобальный экземпляр
 chat_logger = ChatLogger()
-

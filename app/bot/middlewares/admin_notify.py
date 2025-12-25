@@ -24,7 +24,7 @@ class AdminNotifyMiddleware(BaseMiddleware):
         self,
         handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]],
         event: TelegramObject,
-        data: Dict[str, Any]
+        data: Dict[str, Any],
     ) -> Any:
         """Обработка события с уведомлением админов."""
         result = await handler(event, data)
@@ -66,4 +66,3 @@ class AdminNotifyMiddleware(BaseMiddleware):
 
         except Exception as e:
             logger.error(f"Ошибка отправки уведомления админу: {e}")
-

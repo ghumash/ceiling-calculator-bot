@@ -28,7 +28,9 @@ CORNICES_QUESTION = "🪟 Планируете установку карниза
 
 CORNICE_LENGTH_QUESTION = "📏 Укажите длину карниза в погонных метрах"
 
-SPOTLIGHTS_QUESTION = "💡 Сколько точечных светильников нужно установить?\n\nЦена: 513 ₽/шт (установка до 100 мм)"
+SPOTLIGHTS_QUESTION = (
+    "💡 Сколько точечных светильников нужно установить?\n\nЦена: 513 ₽/шт (установка до 100 мм)"
+)
 SPOTLIGHTS_INVALID_INPUT = "⚠️ Пожалуйста, укажите целое число.\nНапример: 8"
 
 CERAMIC_QUESTION = "🏺 Будет ли керамогранит на стенах в санузле?"
@@ -39,9 +41,94 @@ CERAMIC_AREA_INVALID_INPUT = "⚠️ Пожалуйста, укажите чис
 CHANDELIERS_QUESTION = "🔆 Сколько люстр нужно установить?\n\nЦена: 615 ₽/шт (до 5 кг)"
 CHANDELIERS_INVALID_INPUT = "⚠️ Пожалуйста, укажите целое число.\nНапример: 1"
 
-ALL_QUESTIONS_COMPLETE = "✅ Все вопросы заполнены!\n\nНажмите кнопку ниже, чтобы рассчитать стоимость:"
+ALL_QUESTIONS_COMPLETE = (
+    "✅ Все вопросы заполнены!\n\nНажмите кнопку ниже, чтобы рассчитать стоимость:"
+)
 
 GENERATING_RESULT = "⏳ Формирую ваш расчёт..."
+
+
+def _get_fabric_name(fabric_type: str) -> str:
+    """Возвращает читаемое имя полотна.
+
+    Args:
+        fabric_type: Тип полотна
+
+    Returns:
+        Читаемое имя полотна
+    """
+    fabric_names = {"msd": "MSD", "bauf": "BAUF"}
+    return fabric_names.get(fabric_type, fabric_type)
+
+
+def _get_profile_name(profile_type: str) -> str:
+    """Возвращает читаемое имя профиля.
+
+    Args:
+        profile_type: Тип профиля
+
+    Returns:
+        Читаемое имя профиля
+    """
+    profile_names = {
+        "insert": "Со вставкой",
+        "shadow_eco": "Теневой Эконом",
+        "shadow_eurokraab": "Теневой EuroKraab",
+        "floating": "Парящий",
+        "am1": "Однородный AM1",
+    }
+    return profile_names.get(profile_type, profile_type)
+
+
+def _format_cost_line(description: str, cost: float) -> str:
+    """Форматирует строку с описанием и стоимостью.
+
+    Args:
+        description: Описание позиции
+        cost: Стоимость
+
+    Returns:
+        Отформатированная строка
+    """
+    return f"✓ {description} — {cost:,.0f} ₽".replace(",", " ")
+
+
+def _build_cost_details(data: dict) -> list[str]:
+    """Формирует список строк с детализацией стоимости.
+
+    Args:
+        data: Данные расчёта и стоимости
+
+    Returns:
+        Список строк с детализацией
+    """
+    fabric_name = _get_fabric_name(data["fabric_type"])
+    profile_name = _get_profile_name(data["profile_type"])
+
+    lines = [
+        _format_cost_line(f"Полотно {fabric_name}", data["fabric_total"]),
+        _format_cost_line(f"Профиль {profile_name}", data["profile_total"]),
+    ]
+
+    if data.get("spotlights", 0) > 0:
+        lines.append(
+            _format_cost_line(f"Светильники ({data['spotlights']} шт)", data["spotlights_total"])
+        )
+
+    if data.get("ceramic_area", 0) > 0:
+        lines.append(
+            _format_cost_line(f"Керамогранит ({data['ceramic_area']} пог.м)", data["ceramic_total"])
+        )
+
+    if data.get("chandeliers", 0) > 0:
+        lines.append(
+            _format_cost_line(f"Люстра ({data['chandeliers']} шт)", data["chandeliers_total"])
+        )
+
+    if data.get("cornice_total", 0) > 0:
+        lines.append(_format_cost_line("Карниз", data["cornice_total"]))
+
+    return lines
 
 
 def format_result_message(data: dict) -> str:
@@ -53,21 +140,6 @@ def format_result_message(data: dict) -> str:
     Returns:
         Отформатированное сообщение
     """
-    fabric_names = {
-        "msd": "MSD",
-        "bauf": "BAUF"
-    }
-    profile_names = {
-        "insert": "Со вставкой",
-        "shadow_eco": "Теневой Эконом",
-        "shadow_eurokraab": "Теневой EuroKraab",
-        "floating": "Парящий",
-        "am1": "Однородный AM1"
-    }
-
-    fabric_name = fabric_names.get(data["fabric_type"], data["fabric_type"])
-    profile_name = profile_names.get(data["profile_type"], data["profile_type"])
-
     lines = [
         "📊 ВАШ ПРЕДВАРИТЕЛЬНЫЙ РАСЧЁТ",
         "",
@@ -80,32 +152,10 @@ def format_result_message(data: dict) -> str:
         "━━━━━━━━━━━━━━━━━━━━━━━━━━",
         "",
         "📋 Что входит:",
-        f"✓ Полотно {fabric_name} — {data['fabric_total']:,.0f} ₽".replace(",", " "),
-        f"✓ Профиль {profile_name} — {data['profile_total']:,.0f} ₽".replace(",", " "),
     ]
 
-    if data.get("spotlights", 0) > 0:
-        lines.append(
-            f"✓ Светильники ({data['spotlights']} шт) — {data['spotlights_total']:,.0f} ₽".replace(",", " ")
-        )
-
-    if data.get("ceramic_area", 0) > 0:
-        lines.append(
-            f"✓ Керамогранит ({data['ceramic_area']} пог.м) — {data['ceramic_total']:,.0f} ₽".replace(",", " ")
-        )
-
-    if data.get("chandeliers", 0) > 0:
-        lines.append(
-            f"✓ Люстра ({data['chandeliers']} шт) — {data['chandeliers_total']:,.0f} ₽".replace(",", " ")
-        )
-
-    if data.get("cornice_total", 0) > 0:
-        lines.append(
-            f"✓ Карниз — {data['cornice_total']:,.0f} ₽".replace(",", " ")
-        )
-
+    lines.extend(_build_cost_details(data))
     lines.append("")
     lines.append("💡 Для получения детальной сметы свяжитесь с менеджером")
 
     return "\n".join(lines)
-

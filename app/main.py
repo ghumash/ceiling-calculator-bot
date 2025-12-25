@@ -11,7 +11,6 @@ from dotenv import load_dotenv
 from app.core.config import settings
 from app.bot.handlers import start, calculation, admin
 from app.bot.middlewares.logging import ChatLoggingMiddleware
-from app.bot.middlewares.admin_notify import AdminNotifyMiddleware
 
 
 # Загрузка .env
@@ -23,7 +22,7 @@ async def main() -> None:
     # Настройка логирования
     logging.basicConfig(
         level=getattr(logging, settings.log_level),
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
     logger = logging.getLogger(__name__)
 
@@ -68,4 +67,3 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         print("Bot stopped!")
-

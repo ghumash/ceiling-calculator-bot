@@ -1,6 +1,6 @@
 """Конфигурация приложения через Pydantic Settings."""
 
-from pydantic import Field, field_validator
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -8,10 +8,7 @@ class Settings(BaseSettings):
     """Настройки приложения."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore"
+        env_file=".env", env_file_encoding="utf-8", case_sensitive=False, extra="ignore"
     )
 
     # Bot
@@ -61,4 +58,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-
