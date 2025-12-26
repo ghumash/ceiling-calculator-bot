@@ -20,7 +20,6 @@ from app.bot.keyboards.inline import (
 from app.templates.messages.texts import (
     AREA_QUESTION,
     AREA_ACCEPTED,
-    AREA_NOTE_MIN,
     AREA_INVALID_INPUT,
     PROFILE_QUESTION,
     PROFILE_ACCEPTED,
@@ -173,12 +172,7 @@ async def _process_area(message: Message, state: FSMContext, area: float, user_i
     """Сохраняет площадь и переходит к выбору профиля."""
     await state.update_data(area=area)
 
-    # Формирование сообщения с примечанием если площадь < 20
-    note = ""
-    if area < settings.min_area_for_calculation:
-        note = f"\n\n{AREA_NOTE_MIN}"
-
-    response = AREA_ACCEPTED.format(area=area) + note
+    response = AREA_ACCEPTED.format(area=area)
     await message.answer(response, parse_mode=ParseMode.HTML)
     chat_logger.log_message(user_id=user_id, username="БОТ", message=response, is_bot=True)
 
@@ -562,7 +556,9 @@ async def _notify_admin(bot: Bot, user: User, calculation, data: dict) -> None:
         )
 
         if calculation.profile_cost > 0:
-            details += RESULT_DETAILS_PROFILE.format(cost=calculation.profile_cost)
+            details += RESULT_DETAILS_PROFILE.format(
+                name=profile_name, cost=calculation.profile_cost
+            )
 
         if calculation.cornice_cost > 0:
             cornice_name = get_cornice_name(calculation.cornice_type)
