@@ -151,8 +151,12 @@ async def ask_area(message: Message, state: FSMContext, user_id: int) -> None:
 @router.message(CalculationStates.waiting_for_area)
 async def process_area_input(message: Message, state: FSMContext) -> None:
     """Обработка текстового ввода площади."""
+    if not message.text:
+        await message.answer(AREA_INVALID_INPUT, parse_mode=ParseMode.HTML)
+        return
+
     try:
-        area = float(message.text.replace(",", "."))
+        area = float(message.text.strip().replace(",", "."))
 
         username = message.from_user.username or message.from_user.first_name
         chat_logger.log_message(
@@ -164,7 +168,7 @@ async def process_area_input(message: Message, state: FSMContext) -> None:
 
         await _process_area(message, state, area, message.from_user.id)
 
-    except (ValueError, AttributeError):
+    except ValueError:
         await message.answer(AREA_INVALID_INPUT, parse_mode=ParseMode.HTML)
 
 
@@ -267,8 +271,12 @@ async def _ask_cornice_length(message: Message, state: FSMContext, user_id: int)
 @router.message(CalculationStates.entering_cornice_length)
 async def process_cornice_length(message: Message, state: FSMContext) -> None:
     """Обработка ввода длины карнизов."""
+    if not message.text:
+        await message.answer(CORNICE_INVALID_INPUT, parse_mode=ParseMode.HTML)
+        return
+
     try:
-        length = float(message.text.replace(",", "."))
+        length = float(message.text.strip().replace(",", "."))
 
         if length < 0 or length > 100:
             await message.answer(CORNICE_VALIDATION_ERROR, parse_mode=ParseMode.HTML)
@@ -287,7 +295,7 @@ async def process_cornice_length(message: Message, state: FSMContext) -> None:
             # Переход к выбору типа карниза
             await _ask_cornice_type(message, state, message.from_user.id)
 
-    except (ValueError, AttributeError):
+    except ValueError:
         await message.answer(CORNICE_INVALID_INPUT, parse_mode=ParseMode.HTML)
 
 
@@ -385,8 +393,12 @@ async def _ask_spotlights(message: Message, state: FSMContext, user_id: int) -> 
 @router.message(CalculationStates.entering_spotlights)
 async def process_spotlights_input(message: Message, state: FSMContext) -> None:
     """Обработка текстового ввода светильников."""
+    if not message.text:
+        await message.answer(SPOTLIGHTS_INVALID_INPUT, parse_mode=ParseMode.HTML)
+        return
+
     try:
-        count = int(message.text)
+        count = int(message.text.strip())
 
         if count < 0 or count > 100:
             await message.answer(COUNT_VALIDATION_ERROR, parse_mode=ParseMode.HTML)
@@ -402,7 +414,7 @@ async def process_spotlights_input(message: Message, state: FSMContext) -> None:
 
         await _process_spotlights(message, state, count, message.from_user.id)
 
-    except (ValueError, AttributeError):
+    except ValueError:
         await message.answer(SPOTLIGHTS_INVALID_INPUT, parse_mode=ParseMode.HTML)
 
 
@@ -440,8 +452,12 @@ async def _ask_chandeliers(message: Message, state: FSMContext, user_id: int) ->
 @router.message(CalculationStates.entering_chandeliers)
 async def process_chandeliers_input(message: Message, state: FSMContext) -> None:
     """Обработка текстового ввода люстр."""
+    if not message.text:
+        await message.answer(CHANDELIERS_INVALID_INPUT, parse_mode=ParseMode.HTML)
+        return
+
     try:
-        count = int(message.text)
+        count = int(message.text.strip())
 
         if count < 0 or count > 100:
             await message.answer(COUNT_VALIDATION_ERROR, parse_mode=ParseMode.HTML)
@@ -457,7 +473,7 @@ async def process_chandeliers_input(message: Message, state: FSMContext) -> None
 
         await _process_chandeliers(message, state, count, message.from_user)
 
-    except (ValueError, AttributeError):
+    except ValueError:
         await message.answer(CHANDELIERS_INVALID_INPUT, parse_mode=ParseMode.HTML)
 
 
