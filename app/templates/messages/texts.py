@@ -67,20 +67,19 @@ COUNT_VALIDATION_ERROR = "❌ Количество должно быть <b>от
 RESULT_MESSAGE = """📊 <b>ВАШ ПРЕДВАРИТЕЛЬНЫЙ РАСЧЁТ</b>
 
 <b>Параметры:</b>
-- Площадь: {area} м²
-{area_note}• Профиль: {profile_name}
-{cornice_info}{lighting_info}
-━━━━━━━━━━━━━━━━━━━━━━
+• Площадь: {area} м²
+{area_note}{cornice_info}{lighting_info}
+━━━━━━━━━━━━━━━━━━━
 
 💰 <b>ИТОГО: {total:,.0f} ₽</b>
 
-━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━
 
 ℹ️ <i>Это предварительный расчёт. Точная стоимость определяется после замера помещения.</i>"""
 
 # Детали расчёта
 RESULT_DETAILS_CEILING = "• Потолок ({area_calc} м² × 902 ₽): {cost:,.0f} ₽\n"
-RESULT_DETAILS_PROFILE = "• Профиль {name}: {cost:,.0f} ₽\n"
+RESULT_DETAILS_PROFILE = "• Профиль {name} ({length:.1f} м): {cost:,.0f} ₽\n"
 RESULT_DETAILS_CORNICE = "• Карниз {type} ({length} м): {cost:,.0f} ₽\n"
 RESULT_DETAILS_SPOTLIGHTS = "• Светильники ({count} шт × 513 ₽): {cost:,.0f} ₽\n"
 RESULT_DETAILS_CHANDELIERS = "• Люстры ({count} шт × 550 ₽): {cost:,.0f} ₽\n"
@@ -95,15 +94,13 @@ ADMIN_REPORT = """🔔 НОВЫЙ РАСЧЁТ
 - Дата: {date}
 
 📊 Параметры:
-- Площадь: {area} м²
-{area_note}• Профиль: {profile_name}
-
-{cornice_info}{lighting_info}
-━━━━━━━━━━━━━━━━━━━━━━
+• Площадь: {area} м²
+{area_note}{profile_info}{lighting_info}
+━━━━━━━━━━━━━━━━━━━
 
 💰 ИТОГО: {total:,.0f} ₽
 
-━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━
 
 📋 Детализация:
 {details}"""

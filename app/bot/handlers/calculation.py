@@ -91,37 +91,43 @@ async def go_back(callback: CallbackQuery, state: FSMContext) -> None:
         await state.update_data(profile_type=None, previous_state=CalculationStates.choosing_contact_method)
         await ask_area(callback.message, state, user_id)
         
-    elif current_state == CalculationStates.entering_cornice_length:
-        # Возврат к профилю - удаляем данные карнизов
-        await state.update_data(cornice_length=None, cornice_type=None, previous_state=CalculationStates.waiting_for_area)
+    elif current_state == CalculationStates.choosing_cornice_type:
+        # Возврат к профилю - удаляем тип карниза
+        await state.update_data(cornice_type=None, cornice_length=None, previous_state=CalculationStates.choosing_profile)
         await _ask_profile(callback.message, state, user_id)
         
-    elif current_state == CalculationStates.choosing_cornice_type:
-        # Возврат к длине карнизов - удаляем тип карниза
-        await state.update_data(cornice_type=None, previous_state=CalculationStates.choosing_profile)
-        await _ask_cornice_length(callback.message, state, user_id)
+    elif current_state == CalculationStates.entering_cornice_length:
+        # Возврат к типу карниза - удаляем длину
+        await state.update_data(cornice_length=None, previous_state=CalculationStates.choosing_profile)
+        await _ask_cornice_type(callback.message, state, user_id)
         
     elif current_state == CalculationStates.entering_spotlights:
         # Возврат к карнизам или профилю
         await state.update_data(spotlights=None, previous_state=None)
         profile_type = data.get("profile_type")
-        if profile_type == "insert" or data.get("cornice_length", 0) == 0:
-            # Профиль "insert" или нет карнизов - возврат к профилю
+        if profile_type == "insert":
+            # Профиль "insert" - возврат к профилю
             await state.update_data(previous_state=CalculationStates.waiting_for_area)
             await _ask_profile(callback.message, state, user_id)
-        else:
-            # Есть карнизы - возврат к типу карниза
-            await state.update_data(previous_state=CalculationStates.entering_cornice_length)
+        elif data.get("cornice_length", 0) == 0:
+            # Нет карнизов - возврат к типу карниза
+            await state.update_data(previous_state=CalculationStates.choosing_profile)
             await _ask_cornice_type(callback.message, state, user_id)
+        else:
+            # Есть карнизы - возврат к длине карнизов
+            await state.update_data(previous_state=CalculationStates.choosing_cornice_type)
+            await _ask_cornice_length(callback.message, state, user_id)
         
     elif current_state == CalculationStates.entering_chandeliers:
         # Возврат к светильникам - удаляем люстры
         await state.update_data(chandeliers=None, previous_state=None)
         profile_type = data.get("profile_type")
-        if profile_type == "insert" or data.get("cornice_length", 0) == 0:
+        if profile_type == "insert":
             previous_state = CalculationStates.choosing_profile
-        else:
+        elif data.get("cornice_length", 0) == 0:
             previous_state = CalculationStates.choosing_cornice_type
+        else:
+            previous_state = CalculationStates.entering_cornice_length
         await state.update_data(previous_state=previous_state)
         await _ask_spotlights(callback.message, state, user_id)
     
@@ -247,8 +253,8 @@ async def process_profile(callback: CallbackQuery, state: FSMContext) -> None:
     if profile_type == "insert":
         await _ask_spotlights(callback.message, state, callback.from_user.id)
     else:
-        # Переход к карнизам
-        await _ask_cornice_length(callback.message, state, callback.from_user.id)
+        # Переход к выбору типа карниза
+        await _ask_cornice_type(callback.message, state, callback.from_user.id)
 
 
 # ============================================
@@ -256,53 +262,10 @@ async def process_profile(callback: CallbackQuery, state: FSMContext) -> None:
 # ============================================
 
 
-async def _ask_cornice_length(message: Message, state: FSMContext, user_id: int) -> None:
-    """Запрашивает длину карнизов."""
-    # Сохраняем предыдущее состояние
-    await state.update_data(previous_state=CalculationStates.choosing_profile)
-    await message.answer(CORNICE_LENGTH_QUESTION, reply_markup=get_back_keyboard(), parse_mode=ParseMode.HTML)
-    await state.set_state(CalculationStates.entering_cornice_length)
-
-    chat_logger.log_message(
-        user_id=user_id, username="БОТ", message=CORNICE_LENGTH_QUESTION, is_bot=True
-    )
-
-
-@router.message(CalculationStates.entering_cornice_length)
-async def process_cornice_length(message: Message, state: FSMContext) -> None:
-    """Обработка ввода длины карнизов."""
-    if not message.text:
-        await message.answer(CORNICE_INVALID_INPUT, parse_mode=ParseMode.HTML)
-        return
-
-    try:
-        length = float(message.text.strip().replace(",", "."))
-
-        if length < 0 or length > 100:
-            await message.answer(CORNICE_VALIDATION_ERROR, parse_mode=ParseMode.HTML)
-            return
-
-        await state.update_data(cornice_length=length)
-
-        if length == 0:
-            await message.answer(NO_CORNICE, parse_mode=ParseMode.HTML)
-            chat_logger.log_message(
-                user_id=message.from_user.id, username="БОТ", message=NO_CORNICE, is_bot=True
-            )
-            # Переход к освещению
-            await _ask_spotlights(message, state, message.from_user.id)
-        else:
-            # Переход к выбору типа карниза
-            await _ask_cornice_type(message, state, message.from_user.id)
-
-    except ValueError:
-        await message.answer(CORNICE_INVALID_INPUT, parse_mode=ParseMode.HTML)
-
-
 async def _ask_cornice_type(message: Message, state: FSMContext, user_id: int) -> None:
     """Запрашивает тип карниза."""
     # Сохраняем предыдущее состояние
-    await state.update_data(previous_state=CalculationStates.entering_cornice_length)
+    await state.update_data(previous_state=CalculationStates.choosing_profile)
     
     # Отправка фото с вариантами карнизов
     # Приоритет: единое фото cornices_all.jpg или carnices_all.jpg, иначе первое доступное
@@ -341,29 +304,85 @@ async def process_cornice_type(callback: CallbackQuery, state: FSMContext) -> No
     await callback.answer()
 
     cornice_type = callback.data.replace("cornice_", "")
+    
+    # Если выбрано "Без карнизов"
+    if cornice_type == "none":
+        await state.update_data(cornice_type=None, cornice_length=0)
+        await callback.message.answer(NO_CORNICE, parse_mode=ParseMode.HTML)
+        chat_logger.log_message(
+            user_id=callback.from_user.id, username="БОТ", message=NO_CORNICE, is_bot=True
+        )
+        # Переход к освещению
+        await _ask_spotlights(callback.message, state, callback.from_user.id)
+        return
+    
+    # Если выбран тип карниза - сохраняем и переходим к вопросу о длине
     cornice_name = get_cornice_name(cornice_type)
-
     await state.update_data(cornice_type=cornice_type)
-
-    data = await state.get_data()
-    length = data["cornice_length"]
-
+    
     username = callback.from_user.username or callback.from_user.first_name
     chat_logger.log_message(
         user_id=callback.from_user.id,
         username=username,
-        message=f"Карниз: {cornice_name}, {length} пог.м",
+        message=f"Тип карниза: {cornice_name}",
         is_bot=False,
     )
+    
+    # Переход к вопросу о длине карнизов
+    await _ask_cornice_length(callback.message, state, callback.from_user.id)
 
-    response = CORNICE_ACCEPTED.format(cornice_name=cornice_name, length=length)
-    await callback.message.answer(response, parse_mode=ParseMode.HTML)
+
+async def _ask_cornice_length(message: Message, state: FSMContext, user_id: int) -> None:
+    """Запрашивает длину карнизов."""
+    # Сохраняем предыдущее состояние
+    await state.update_data(previous_state=CalculationStates.choosing_cornice_type)
+    await message.answer(CORNICE_LENGTH_QUESTION, reply_markup=get_back_keyboard(), parse_mode=ParseMode.HTML)
+    await state.set_state(CalculationStates.entering_cornice_length)
+
     chat_logger.log_message(
-        user_id=callback.from_user.id, username="БОТ", message=response, is_bot=True
+        user_id=user_id, username="БОТ", message=CORNICE_LENGTH_QUESTION, is_bot=True
     )
 
-    # Переход к освещению
-    await _ask_spotlights(callback.message, state, callback.from_user.id)
+
+@router.message(CalculationStates.entering_cornice_length)
+async def process_cornice_length(message: Message, state: FSMContext) -> None:
+    """Обработка ввода длины карнизов."""
+    if not message.text:
+        await message.answer(CORNICE_INVALID_INPUT, parse_mode=ParseMode.HTML)
+        return
+
+    try:
+        length = float(message.text.strip().replace(",", "."))
+
+        if length < 0 or length > 100:
+            await message.answer(CORNICE_VALIDATION_ERROR, parse_mode=ParseMode.HTML)
+            return
+
+        await state.update_data(cornice_length=length)
+
+        data = await state.get_data()
+        cornice_type = data.get("cornice_type")
+        cornice_name = get_cornice_name(cornice_type)
+        
+        username = message.from_user.username or message.from_user.first_name
+        chat_logger.log_message(
+            user_id=message.from_user.id,
+            username=username,
+            message=f"Длина карнизов: {length} пог.м",
+            is_bot=False,
+        )
+
+        response = CORNICE_ACCEPTED.format(cornice_name=cornice_name, length=length)
+        await message.answer(response, parse_mode=ParseMode.HTML)
+        chat_logger.log_message(
+            user_id=message.from_user.id, username="БОТ", message=response, is_bot=True
+        )
+
+        # Переход к освещению
+        await _ask_spotlights(message, state, message.from_user.id)
+
+    except ValueError:
+        await message.answer(CORNICE_INVALID_INPUT, parse_mode=ParseMode.HTML)
 
 
 # ============================================
@@ -373,13 +392,15 @@ async def process_cornice_type(callback: CallbackQuery, state: FSMContext) -> No
 
 async def _ask_spotlights(message: Message, state: FSMContext, user_id: int) -> None:
     """Запрашивает количество точечных светильников."""
-    # Сохраняем предыдущее состояние (может быть choosing_cornice_type, entering_cornice_length или choosing_profile)
+    # Сохраняем предыдущее состояние
     data = await state.get_data()
     profile_type = data.get("profile_type")
-    if profile_type == "insert" or data.get("cornice_length", 0) == 0:
+    if profile_type == "insert":
         previous_state = CalculationStates.choosing_profile
-    else:
+    elif data.get("cornice_length", 0) == 0:
         previous_state = CalculationStates.choosing_cornice_type
+    else:
+        previous_state = CalculationStates.entering_cornice_length
     await state.update_data(previous_state=previous_state)
     
     await message.answer(SPOTLIGHTS_QUESTION, reply_markup=get_back_keyboard(), parse_mode=ParseMode.HTML)
@@ -503,16 +524,18 @@ def _format_result_info(calculation: CalculationData) -> tuple[str, str, str]:
         calculation: Данные расчёта
         
     Returns:
-        (area_note, cornice_info, lighting_info)
+        (area_note, profile_info, lighting_info)
     """
     area_note = ""
     if calculation.area < settings.min_area_for_calculation:
         area_note = f"• Расчёт от минимальной площади: {calculation.area_for_calculation} м²\n"
 
-    cornice_info = ""
-    if calculation.cornice_length > 0 and calculation.cornice_type:
-        cornice_name = get_cornice_name(calculation.cornice_type)
-        cornice_info = f"• Карниз: {cornice_name} — {calculation.cornice_length} пог.м\n"
+    # Периметр профиля вычисляется автоматически: площадь × 1.7
+    profile_info = ""
+    if calculation.profile_type != "insert":
+        profile_name = get_profile_name(calculation.profile_type)
+        perimeter = calculation.area * settings.perimeter_coefficient
+        profile_info = f"• Профиль: {profile_name} — {perimeter:.1f} пог.м\n"
 
     lighting_info = ""
     if calculation.spotlights > 0:
@@ -520,7 +543,7 @@ def _format_result_info(calculation: CalculationData) -> tuple[str, str, str]:
     if calculation.chandeliers > 0:
         lighting_info += f"• Люстры: {calculation.chandeliers} шт\n"
 
-    return area_note, cornice_info, lighting_info
+    return area_note, profile_info, lighting_info
 
 
 async def _show_result(message: Message, state: FSMContext, user: User) -> None:
@@ -532,14 +555,12 @@ async def _show_result(message: Message, state: FSMContext, user: User) -> None:
     calculation = calculate_total(data)
 
     # Формирование сообщения для пользователя
-    area_note, cornice_info, lighting_info = _format_result_info(calculation)
-    profile_name = get_profile_name(calculation.profile_type)
+    area_note, profile_info, lighting_info = _format_result_info(calculation)
 
     result_text = RESULT_MESSAGE.format(
         area=calculation.area,
         area_note=area_note,
-        profile_name=profile_name,
-        cornice_info=cornice_info,
+        cornice_info=profile_info,  # profile_info содержит информацию о профиле с периметром
         lighting_info=lighting_info,
         total=calculation.total_cost,
     )
@@ -564,7 +585,7 @@ async def _notify_admin(bot: Bot, user: User, calculation, data: dict) -> None:
         date = datetime.now().strftime("%d.%m.%Y %H:%M")
 
         profile_name = get_profile_name(calculation.profile_type)
-        area_note, cornice_info, lighting_info = _format_result_info(calculation)
+        area_note, profile_info, lighting_info = _format_result_info(calculation)
 
         # Детализация
         details = RESULT_DETAILS_CEILING.format(
@@ -572,8 +593,9 @@ async def _notify_admin(bot: Bot, user: User, calculation, data: dict) -> None:
         )
 
         if calculation.profile_cost > 0:
+            perimeter = calculation.area * settings.perimeter_coefficient
             details += RESULT_DETAILS_PROFILE.format(
-                name=profile_name, cost=calculation.profile_cost
+                name=profile_name, length=perimeter, cost=calculation.profile_cost
             )
 
         if calculation.cornice_cost > 0:
@@ -599,8 +621,7 @@ async def _notify_admin(bot: Bot, user: User, calculation, data: dict) -> None:
             date=date,
             area=calculation.area,
             area_note=area_note,
-            profile_name=profile_name,
-            cornice_info=cornice_info,
+            profile_info=profile_info,
             lighting_info=lighting_info,
             total=calculation.total_cost,
             details=details,

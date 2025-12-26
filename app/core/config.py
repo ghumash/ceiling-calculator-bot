@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     profile_floating_price: int = 1845
 
     # Коэффициент для расчёта периметра от площади
-    perimeter_coefficient: float = 1.4
+    perimeter_coefficient: float = 1.7
 
     # Цены - Карнизы (за погонный метр)
     cornice_pk14_price: int = 3844
