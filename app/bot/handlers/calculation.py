@@ -37,6 +37,17 @@ from app.templates.messages.texts import (
     RESULT_MESSAGE,
     ADMIN_REPORT,
     WELCOME_MESSAGE,
+    NAME_QUESTION,
+    NAME_ACCEPTED,
+    NAME_INVALID_INPUT,
+    PHONE_QUESTION,
+    PHONE_ACCEPTED,
+    PHONE_INVALID_INPUT,
+    ADDRESS_QUESTION,
+    ADDRESS_ACCEPTED,
+    ADDRESS_INVALID_INPUT,
+    MEASUREMENT_THANK_YOU,
+    MEASUREMENT_REPORT,
     get_profile_name,
     get_cornice_name,
     get_cornice_validation_error,
@@ -51,7 +62,7 @@ from app.services.chat_logger import chat_logger
 from app.services.calculator import calculate_total
 from app.schemas.calculation import CalculationData
 from app.core.config import settings
-from app.utils.validation import parse_float, parse_int, validate_range
+from app.utils.validation import parse_float, parse_int, validate_range, validate_phone, normalize_phone
 from app.utils.user import get_user_display_name
 from app.utils.images import send_image_if_exists
 
@@ -144,6 +155,41 @@ async def _go_back_to_chandeliers(callback: CallbackQuery, state: FSMContext, us
     await _ask_spotlights(callback.message, state, user_id)
 
 
+async def _go_back_to_result(callback: CallbackQuery, state: FSMContext, user_id: int) -> None:
+    """Возврат к результату расчёта."""
+    await state.update_data(customer_name=None, previous_state=CalculationStates.showing_result)
+    # Возвращаемся к результату - показываем его снова
+    data = await state.get_data()
+    calculation = calculate_total(data)
+    area_note, profile_info, lighting_info = _format_result_info(calculation)
+    
+    result_text = RESULT_MESSAGE.format(
+        area=calculation.area,
+        area_note=area_note,
+        cornice_info=profile_info,
+        lighting_info=lighting_info,
+        total=calculation.total_cost,
+    )
+    
+    await callback.message.answer(result_text, reply_markup=get_result_keyboard(), parse_mode=ParseMode.HTML)
+    await state.set_state(CalculationStates.showing_result)
+    chat_logger.log_message(
+        user_id=user_id, username="БОТ", message="◀️ Возврат к результату", is_bot=True
+    )
+
+
+async def _go_back_to_name(callback: CallbackQuery, state: FSMContext, user_id: int) -> None:
+    """Возврат к вводу имени."""
+    await state.update_data(phone=None, previous_state=CalculationStates.showing_result)
+    await _ask_name(callback.message, state, user_id)
+
+
+async def _go_back_to_phone(callback: CallbackQuery, state: FSMContext, user_id: int) -> None:
+    """Возврат к вводу телефона."""
+    await state.update_data(address=None, previous_state=CalculationStates.entering_name)
+    await _ask_phone(callback.message, state, user_id)
+
+
 @router.callback_query(F.data == "go_back")
 async def go_back(callback: CallbackQuery, state: FSMContext) -> None:
     """Обработчик возврата на предыдущий шаг."""
@@ -160,6 +206,8 @@ async def go_back(callback: CallbackQuery, state: FSMContext) -> None:
         CalculationStates.entering_cornice_length: _go_back_to_cornice_type,
         CalculationStates.entering_spotlights: lambda cb, st, uid: _go_back_to_spotlights(cb, st, uid, data),
         CalculationStates.entering_chandeliers: lambda cb, st, uid: _go_back_to_chandeliers(cb, st, uid, data),
+        CalculationStates.entering_phone: lambda cb, st, uid: _go_back_to_result(cb, st, uid),
+        CalculationStates.entering_address: lambda cb, st, uid: _go_back_to_phone(cb, st, uid),
     }
     
     handler = handlers.get(current_state)
@@ -630,7 +678,7 @@ async def _send_admin_notification(bot: Bot, admin_id: int, report: str) -> None
         report: Текст отчёта
     """
     try:
-        await bot.send_message(chat_id=admin_id, text=report)
+        await bot.send_message(chat_id=admin_id, text=report, parse_mode=ParseMode.HTML)
     except Exception as e:
         error_msg = str(e).lower()
         if "chat not found" not in error_msg and "bot was blocked" not in error_msg:
@@ -667,3 +715,196 @@ async def _notify_admin(bot: Bot, user: User, calculation: CalculationData, data
 
     except Exception as e:
         logger.error(f"Ошибка отправки уведомления админу: {e}")
+
+
+# ============================================
+# ЗАКАЗ ЗАМЕРА
+# ============================================
+
+
+@router.callback_query(F.data == "order_measurement")
+async def start_measurement_order(callback: CallbackQuery, state: FSMContext) -> None:
+    """Начало заказа бесплатного замера."""
+    await callback.answer()
+    
+    # Сохраняем предыдущее состояние
+    await state.update_data(previous_state=CalculationStates.showing_result)
+    
+    await _ask_name(callback.message, state, callback.from_user.id)
+
+
+async def _ask_name(message: Message, state: FSMContext, user_id: int) -> None:
+    """Запрашивает имя заказчика."""
+    await state.update_data(previous_state=CalculationStates.showing_result)
+    await message.answer(NAME_QUESTION, reply_markup=get_back_keyboard(), parse_mode=ParseMode.HTML)
+    await state.set_state(CalculationStates.entering_name)
+
+    chat_logger.log_message(
+        user_id=user_id, username="БОТ", message=NAME_QUESTION, is_bot=True
+    )
+
+
+@router.message(CalculationStates.entering_name)
+async def process_name_input(message: Message, state: FSMContext) -> None:
+    """Обработка ввода имени."""
+    if not message.text:
+        await message.answer(NAME_INVALID_INPUT, parse_mode=ParseMode.HTML)
+        return
+
+    name = message.text.strip()
+    
+    if len(name) < 2:
+        await message.answer(NAME_INVALID_INPUT, parse_mode=ParseMode.HTML)
+        return
+
+    await state.update_data(customer_name=name)
+
+    username = get_user_display_name(message.from_user)
+    chat_logger.log_message(
+        user_id=message.from_user.id,
+        username=username,
+        message=f"Имя: {name}",
+        is_bot=False,
+    )
+
+    response = NAME_ACCEPTED.format(name=name)
+    await message.answer(response, parse_mode=ParseMode.HTML)
+    chat_logger.log_message(
+        user_id=message.from_user.id, username="БОТ", message=response, is_bot=True
+    )
+
+    # Переход к вопросу о телефоне
+    await _ask_phone(message, state, message.from_user.id)
+
+
+async def _ask_phone(message: Message, state: FSMContext, user_id: int) -> None:
+    """Запрашивает номер телефона."""
+    await state.update_data(previous_state=CalculationStates.entering_name)
+    await message.answer(PHONE_QUESTION, reply_markup=get_back_keyboard(), parse_mode=ParseMode.HTML)
+    await state.set_state(CalculationStates.entering_phone)
+
+    chat_logger.log_message(
+        user_id=user_id, username="БОТ", message=PHONE_QUESTION, is_bot=True
+    )
+
+
+@router.message(CalculationStates.entering_phone)
+async def process_phone_input(message: Message, state: FSMContext) -> None:
+    """Обработка ввода номера телефона."""
+    if not message.text:
+        await message.answer(PHONE_INVALID_INPUT, parse_mode=ParseMode.HTML)
+        return
+
+    phone = message.text.strip()
+    
+    if not validate_phone(phone):
+        await message.answer(PHONE_INVALID_INPUT, parse_mode=ParseMode.HTML)
+        return
+
+    normalized_phone = normalize_phone(phone)
+    await state.update_data(phone=normalized_phone)
+
+    username = get_user_display_name(message.from_user)
+    chat_logger.log_message(
+        user_id=message.from_user.id,
+        username=username,
+        message=f"Телефон: {normalized_phone}",
+        is_bot=False,
+    )
+
+    response = PHONE_ACCEPTED.format(phone=normalized_phone)
+    await message.answer(response, parse_mode=ParseMode.HTML)
+    chat_logger.log_message(
+        user_id=message.from_user.id, username="БОТ", message=response, is_bot=True
+    )
+
+    # Переход к вопросу об адресе
+    await _ask_address(message, state, message.from_user.id)
+
+
+async def _ask_address(message: Message, state: FSMContext, user_id: int) -> None:
+    """Запрашивает адрес объекта."""
+    await state.update_data(previous_state=CalculationStates.entering_phone)
+    await message.answer(ADDRESS_QUESTION, reply_markup=get_back_keyboard(), parse_mode=ParseMode.HTML)
+    await state.set_state(CalculationStates.entering_address)
+
+    chat_logger.log_message(
+        user_id=user_id, username="БОТ", message=ADDRESS_QUESTION, is_bot=True
+    )
+
+
+@router.message(CalculationStates.entering_address)
+async def process_address_input(message: Message, state: FSMContext) -> None:
+    """Обработка ввода адреса."""
+    if not message.text:
+        await message.answer(ADDRESS_INVALID_INPUT, parse_mode=ParseMode.HTML)
+        return
+
+    address = message.text.strip()
+    
+    if len(address) < 5:
+        await message.answer(ADDRESS_INVALID_INPUT, parse_mode=ParseMode.HTML)
+        return
+
+    await state.update_data(address=address)
+
+    username = get_user_display_name(message.from_user)
+    chat_logger.log_message(
+        user_id=message.from_user.id,
+        username=username,
+        message=f"Адрес: {address}",
+        is_bot=False,
+    )
+
+    response = ADDRESS_ACCEPTED.format(address=address)
+    await message.answer(response, parse_mode=ParseMode.HTML)
+    chat_logger.log_message(
+        user_id=message.from_user.id, username="БОТ", message=response, is_bot=True
+    )
+
+    # Отправка благодарности
+    await message.answer(MEASUREMENT_THANK_YOU, parse_mode=ParseMode.HTML)
+    chat_logger.log_message(
+        user_id=message.from_user.id, username="БОТ", message=MEASUREMENT_THANK_YOU, is_bot=True
+    )
+
+    # Отправка уведомления менеджеру
+    await _notify_manager_about_measurement(message.bot, message.from_user, state)
+
+    # Возврат к результату
+    await state.set_state(CalculationStates.showing_result)
+
+
+async def _notify_manager_about_measurement(bot: Bot, user: User, state: FSMContext) -> None:
+    """Отправляет уведомление менеджерам о заказе замера."""
+    if not bot or not settings.admin_ids_list:
+        return
+
+    try:
+        data = await state.get_data()
+        customer_name = data.get("customer_name", "")
+        phone = data.get("phone", "")
+        address = data.get("address", "")
+
+        if not customer_name or not phone or not address:
+            logger.warning("Не удалось отправить уведомление о замере: отсутствуют данные")
+            return
+
+        username = f"@{user.username}" if user.username else "нет username"
+        date = datetime.now().strftime("%d.%m.%Y %H:%M")
+
+        measurement_report = MEASUREMENT_REPORT.format(
+            user_id=user.id,
+            username=username,
+            full_name=user.full_name,
+            customer_name=customer_name,
+            phone=phone,
+            address=address,
+            date=date,
+        )
+
+        for admin_id in settings.admin_ids_list:
+            await _send_admin_notification(bot, admin_id, measurement_report)
+
+    except Exception as e:
+        logger.error(f"Ошибка отправки уведомления о замере: {e}")

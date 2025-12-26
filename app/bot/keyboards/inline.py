@@ -87,5 +87,10 @@ def get_result_keyboard() -> InlineKeyboardMarkup:
                     text="📞 Связаться с менеджером", callback_data="method_manager"
                 )
             ],
+            [
+                InlineKeyboardButton(
+                    text="📐 Бесплатный выезд замерщика", callback_data="order_measurement"
+                )
+            ],
         ]
     )

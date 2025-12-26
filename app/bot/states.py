@@ -25,3 +25,8 @@ class CalculationStates(StatesGroup):
 
     # Результат
     showing_result = State()
+
+    # Заказ замера
+    entering_name = State()
+    entering_phone = State()
+    entering_address = State()
