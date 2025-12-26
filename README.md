@@ -1,55 +1,46 @@
 # Ceiling Calculator Bot
 
-Telegram-бот для автоматизации консультаций и расчёта стоимости натяжных потолков.
-
-## Технологический стек
-
-- Python 3.13-3.14
-- aiogram 3.23.0
-- pydantic 2.10.0
-- pillow 11.1.0
+Telegram-бот для расчёта стоимости натяжных потолков.
 
 ## Установка
 
-### 1. Установка зависимостей Python
-
 ```bash
+# 1. Установка зависимостей
 poetry install
-```
 
-### 2. Настройка .env
-
-Скопируйте `.env.example` в `.env` и заполните необходимые параметры:
-
-```bash
+# 2. Настройка .env
 cp .env.example .env
+# Заполните обязательные поля в .env
 ```
 
-Обязательно укажите:
-- `BOT_TOKEN` - токен вашего Telegram бота
-- `ADMIN_IDS` - ID администраторов (через запятую)
+## Настройка .env
 
-### 3. Подготовка изображений
+**Обязательные параметры:**
+- `BOT_TOKEN` - токен от [@BotFather](https://t.me/BotFather)
+- `ADMIN_IDS` - ID администраторов через запятую (получить у [@userinfobot](https://t.me/userinfobot))
+- `CONTACT_PHONE` - телефон менеджера
+- `CONTACT_TELEGRAM` - Telegram контакт менеджера
 
-Создайте директории и добавьте изображения материалов:
+**Опционально (цены, есть значения по умолчанию):**
+- `CEILING_BASE_PRICE=902` - цена за м² потолка
+- `MIN_AREA_FOR_CALCULATION=20` - минимальная площадь для расчёта
+- `PROFILE_SHADOW_PRICE=718` - цена теневого профиля за м
+- `PROFILE_FLOATING_PRICE=1845` - цена парящего профиля за м
+- `PERIMETER_COEFFICIENT=1.4` - коэффициент расчёта периметра
+- `CORNICE_PK14_PRICE=3844` - цена карниза ПК-14 за м
+- `CORNICE_PK5_PRICE=2819` - цена карниза ПК-5 за м
+- `CORNICE_BP40_PRICE=1282` - цена карниза БП-40 за м
+- `SPOTLIGHT_PRICE=513` - цена установки светильника
+- `CHANDELIER_PRICE=550` - цена установки люстры
+- `LOG_LEVEL=INFO` - уровень логирования
 
-```bash
-mkdir -p static/images/{fabrics,profiles,cornices,lighting}
-```
+## Изображения
 
-Добавьте изображения:
-- `static/images/fabrics/msd.jpg`
-- `static/images/fabrics/bauf.jpg`
-- `static/images/profiles/insert.jpg`
-- `static/images/profiles/shadow_eco.jpg`
-- `static/images/profiles/shadow_eurokraab.jpg`
-- `static/images/profiles/floating.jpg`
-- `static/images/profiles/am1.jpg`
-- `static/images/cornices/pk14.jpg`
-- `static/images/cornices/pk5.jpg`
-- `static/images/cornices/bp40.jpg`
-- `static/images/lighting/spotlights.jpg`
-- `static/images/lighting/chandeliers.jpg`
+**Рекомендуется:**
+- `static/images/profiles/profiles_all.jpg` - единое фото с тремя профилями
+- `static/images/cornices/cornices_all.jpg` (или `carnices_all.jpg`) - единое фото с тремя карнизами
+
+**Альтернатива:** отдельные файлы `insert.jpg`, `shadow_eco.jpg`, `floating.jpg` для профилей и `pk14.jpg`, `pk5.jpg`, `bp40.jpg` для карнизов.
 
 ## Запуск
 
@@ -57,49 +48,56 @@ mkdir -p static/images/{fabrics,profiles,cornices,lighting}
 poetry run python -m app.main
 ```
 
-## Структура проекта
+## Production
+
+**Systemd:**
+```ini
+[Unit]
+Description=Ceiling Calculator Bot
+After=network.target
+
+[Service]
+Type=simple
+User=your_user
+WorkingDirectory=/path/to/ceiling-calculator-bot
+ExecStart=/path/to/ceiling-calculator-bot/.venv/bin/python -m app.main
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**Screen/Tmux:**
+```bash
+screen -S ceiling-bot
+poetry run python -m app.main
+# Ctrl+A, D для отсоединения
+```
+
+## Структура
 
 ```
-ceiling-calculator-bot/
-├── app/
-│   ├── main.py              # Точка входа
-│   ├── core/                # Конфигурация
-│   ├── bot/                 # Логика бота
-│   │   ├── handlers/        # Обработчики
-│   │   ├── keyboards/       # Клавиатуры
-│   │   ├── middlewares/     # Middleware
-│   │   └── states.py        # FSM состояния
-│   ├── services/            # Бизнес-логика
-│   ├── schemas/             # Pydantic модели
-│   └── templates/           # Шаблоны
-├── static/                  # Статические файлы
-└── chat_logs/              # Логи чатов
+app/
+├── main.py              # Точка входа
+├── core/config.py       # Настройки
+├── bot/                 # Логика бота
+│   ├── handlers/        # Обработчики
+│   ├── keyboards/       # Клавиатуры
+│   └── states.py        # FSM состояния
+├── services/            # Бизнес-логика
+├── schemas/             # Pydantic модели
+└── templates/           # Тексты сообщений
 ```
 
 ## Функционал
 
-### Для пользователей
+- Пошаговый расчёт стоимости натяжного потолка
+- Автоматические уведомления админам о расчётах
+- Логи всех диалогов в `chat_logs/user_*.txt`
 
-1. **Расчёт стоимости** - пошаговый диалог с выбором параметров
-2. **Детальная смета** - подробный расчёт стоимости в сообщении
-3. **Изображения материалов** - визуальный выбор полотен, профилей, карнизов
+## Технологии
 
-### Для администраторов
-
-- `/stats` - статистика бота
-- `/history <user_id>` - история чата с пользователем
-- `/broadcast <текст>` - рассылка сообщений всем пользователям
-- `/prices` - просмотр текущих цен
-
-## Особенности
-
-- **Без базы данных** - все данные хранятся в FSM (в памяти)
-- **Логирование чатов** - все диалоги сохраняются в текстовые файлы
-- **Уведомления админу** - автоматические уведомления о новых расчётах
-- **Валидация данных** - проверка корректности ввода через Pydantic
-- **Обработка ошибок** - graceful handling всех исключений
-
-## Лицензия
-
-MIT
-
+- Python 3.13+
+- aiogram 3.23.0
+- pydantic 2.10.0

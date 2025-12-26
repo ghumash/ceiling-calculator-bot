@@ -37,7 +37,6 @@ from app.templates.messages.texts import (
     CHANDELIERS_ACCEPTED,
     CHANDELIERS_INVALID_INPUT,
     COUNT_VALIDATION_ERROR,
-    CALCULATING_MESSAGE,
     RESULT_MESSAGE,
     RESULT_DETAILS_CEILING,
     RESULT_DETAILS_PROFILE,
@@ -76,13 +75,15 @@ async def go_back(callback: CallbackQuery, state: FSMContext) -> None:
     if current_state == CalculationStates.waiting_for_area:
         # Возврат к выбору способа связи
         await state.clear()
+        user_name = callback.from_user.first_name or "Пользователь"
+        welcome_text = WELCOME_MESSAGE.format(name=user_name)
         await callback.message.answer(
-            text=WELCOME_MESSAGE,
+            text=welcome_text,
             reply_markup=get_contact_method_keyboard()
         )
         await state.set_state(CalculationStates.choosing_contact_method)
         chat_logger.log_message(
-            user_id=user_id, username="БОТ", message=WELCOME_MESSAGE, is_bot=True
+            user_id=user_id, username="БОТ", message=welcome_text, is_bot=True
         )
         
     elif current_state == CalculationStates.choosing_profile:
@@ -103,8 +104,9 @@ async def go_back(callback: CallbackQuery, state: FSMContext) -> None:
     elif current_state == CalculationStates.entering_spotlights:
         # Возврат к карнизам или профилю
         await state.update_data(spotlights=None, previous_state=None)
-        if data.get("cornice_length", 0) == 0:
-            # Нет карнизов - возврат к профилю
+        profile_type = data.get("profile_type")
+        if profile_type == "insert" or data.get("cornice_length", 0) == 0:
+            # Профиль "insert" или нет карнизов - возврат к профилю
             await state.update_data(previous_state=CalculationStates.waiting_for_area)
             await _ask_profile(callback.message, state, user_id)
         else:
@@ -115,7 +117,8 @@ async def go_back(callback: CallbackQuery, state: FSMContext) -> None:
     elif current_state == CalculationStates.entering_chandeliers:
         # Возврат к светильникам - удаляем люстры
         await state.update_data(chandeliers=None, previous_state=None)
-        if data.get("cornice_length", 0) == 0:
+        profile_type = data.get("profile_type")
+        if profile_type == "insert" or data.get("cornice_length", 0) == 0:
             previous_state = CalculationStates.choosing_profile
         else:
             previous_state = CalculationStates.choosing_cornice_type
@@ -125,7 +128,7 @@ async def go_back(callback: CallbackQuery, state: FSMContext) -> None:
     chat_logger.log_message(
         user_id=user_id,
         username="БОТ",
-        message="◀️ Возврат на предыдущий шаг",
+        message="⬅️ Возврат на предыдущий шаг",
         is_bot=True,
     )
 
@@ -196,14 +199,14 @@ async def _ask_profile(message: Message, state: FSMContext, user_id: int) -> Non
     # Сохраняем предыдущее состояние
     await state.update_data(previous_state=CalculationStates.waiting_for_area)
     
-    # Отправка одного фото с тремя вариантами профилей
-    # TODO: Создать единое фото profiles_all.jpg с тремя вариантами профилей
+    # Отправка фото с вариантами профилей
+    # Приоритет: единое фото profiles_all.jpg, иначе первое доступное
     profiles_path = Path("static/images/profiles")
-    # Временная заглушка: используем первое доступное фото
-    profile_photo_path = profiles_path / "insert.jpg"
+    profile_photo_path = profiles_path / "profiles_all.jpg"
+    
     if not profile_photo_path.exists():
-        # Пробуем другие варианты
-        for alt_photo in ["shadow_eco.jpg", "floating.jpg"]:
+        # Fallback: используем первое доступное фото
+        for alt_photo in ["insert.jpg", "shadow_eco.jpg", "floating.jpg"]:
             alt_path = profiles_path / alt_photo
             if alt_path.exists():
                 profile_photo_path = alt_path
@@ -213,7 +216,7 @@ async def _ask_profile(message: Message, state: FSMContext, user_id: int) -> Non
         try:
             await message.answer_photo(photo=FSInputFile(profile_photo_path))
         except Exception as e:
-            logger.warning(f"Не удалось отправить изображение профиля: {e}")
+            logger.error(f"Не удалось отправить изображение профиля {profile_photo_path}: {e}")
 
     await message.answer(PROFILE_QUESTION, reply_markup=get_profile_keyboard())
     await state.set_state(CalculationStates.choosing_profile)
@@ -245,8 +248,12 @@ async def process_profile(callback: CallbackQuery, state: FSMContext) -> None:
         user_id=callback.from_user.id, username="БОТ", message=response, is_bot=True
     )
 
-    # Переход к карнизам
-    await _ask_cornice_length(callback.message, state, callback.from_user.id)
+    # Если выбран обычный профиль со вставкой, пропускаем карнизы
+    if profile_type == "insert":
+        await _ask_spotlights(callback.message, state, callback.from_user.id)
+    else:
+        # Переход к карнизам
+        await _ask_cornice_length(callback.message, state, callback.from_user.id)
 
 
 # ============================================
@@ -298,14 +305,18 @@ async def _ask_cornice_type(message: Message, state: FSMContext, user_id: int) -
     # Сохраняем предыдущее состояние
     await state.update_data(previous_state=CalculationStates.entering_cornice_length)
     
-    # Отправка одного фото с тремя вариантами карнизов
-    # TODO: Создать единое фото cornices_all.jpg с тремя вариантами карнизов
+    # Отправка фото с вариантами карнизов
+    # Приоритет: единое фото cornices_all.jpg или carnices_all.jpg, иначе первое доступное
     cornices_path = Path("static/images/cornices")
-    # Временная заглушка: используем первое доступное фото
-    cornice_photo_path = cornices_path / "pk14.jpg"
+    cornice_photo_path = cornices_path / "cornices_all.jpg"
+    
+    # Поддержка опечатки в имени файла
     if not cornice_photo_path.exists():
-        # Пробуем другие варианты
-        for alt_photo in ["pk5.jpg", "bp40.jpg"]:
+        cornice_photo_path = cornices_path / "carnices_all.jpg"
+    
+    if not cornice_photo_path.exists():
+        # Fallback: используем первое доступное фото
+        for alt_photo in ["pk14.jpg", "pk5.jpg", "bp40.jpg"]:
             alt_path = cornices_path / alt_photo
             if alt_path.exists():
                 cornice_photo_path = alt_path
@@ -315,8 +326,8 @@ async def _ask_cornice_type(message: Message, state: FSMContext, user_id: int) -
         try:
             await message.answer_photo(photo=FSInputFile(cornice_photo_path))
         except Exception as e:
-            logger.warning(f"Не удалось отправить изображение карниза: {e}")
-
+            logger.error(f"Не удалось отправить изображение карниза {cornice_photo_path}: {e}")
+ 
     await message.answer(CORNICE_TYPE_QUESTION, reply_markup=get_cornice_keyboard())
     await state.set_state(CalculationStates.choosing_cornice_type)
 
@@ -363,9 +374,10 @@ async def process_cornice_type(callback: CallbackQuery, state: FSMContext) -> No
 
 async def _ask_spotlights(message: Message, state: FSMContext, user_id: int) -> None:
     """Запрашивает количество точечных светильников."""
-    # Сохраняем предыдущее состояние (может быть choosing_cornice_type или entering_cornice_length)
+    # Сохраняем предыдущее состояние (может быть choosing_cornice_type, entering_cornice_length или choosing_profile)
     data = await state.get_data()
-    if data.get("cornice_length", 0) == 0:
+    profile_type = data.get("profile_type")
+    if profile_type == "insert" or data.get("cornice_length", 0) == 0:
         previous_state = CalculationStates.choosing_profile
     else:
         previous_state = CalculationStates.choosing_cornice_type
@@ -506,8 +518,6 @@ def _format_result_info(calculation: CalculationData) -> tuple[str, str, str]:
 
 async def _show_result(message: Message, state: FSMContext, user: User) -> None:
     """Показывает результат расчёта и отправляет админу."""
-    await message.answer(CALCULATING_MESSAGE)
-
     # Получение данных
     data = await state.get_data()
 

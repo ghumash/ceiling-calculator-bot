@@ -7,7 +7,7 @@ def get_back_keyboard() -> InlineKeyboardMarkup:
     """Клавиатура только с кнопкой 'Назад' для текстовых вопросов."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="◀️ Назад", callback_data="go_back")]
+            [InlineKeyboardButton(text="⬅️ Назад", callback_data="go_back")]
         ]
     )
 
@@ -22,7 +22,7 @@ def add_back_button(keyboard: InlineKeyboardMarkup) -> InlineKeyboardMarkup:
         Клавиатура с добавленной кнопкой 'Назад'
     """
     new_rows = keyboard.inline_keyboard.copy()
-    new_rows.append([InlineKeyboardButton(text="◀️ Назад", callback_data="go_back")])
+    new_rows.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="go_back")])
     return InlineKeyboardMarkup(inline_keyboard=new_rows)
 
 
@@ -50,11 +50,11 @@ def get_profile_keyboard() -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="✦ Обычный со вставкой", callback_data="profile_insert"
+                    text="Обычный со вставкой", callback_data="profile_insert"
                 )
             ],
-            [InlineKeyboardButton(text="✦ Теневой", callback_data="profile_shadow")],
-            [InlineKeyboardButton(text="✦ Парящий", callback_data="profile_floating")],
+            [InlineKeyboardButton(text="Теневой", callback_data="profile_shadow")],
+            [InlineKeyboardButton(text="Парящий (без стоимости ленты)", callback_data="profile_floating")],
         ]
     )
     return add_back_button(keyboard)

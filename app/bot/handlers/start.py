@@ -21,15 +21,17 @@ async def cmd_start(message: Message, state: FSMContext) -> None:
     await state.clear()
 
     username = message.from_user.username or message.from_user.first_name
+    user_name = message.from_user.first_name or "Пользователь"
     chat_logger.log_message(
         user_id=message.from_user.id, username=username, message="/start", is_bot=False
     )
 
-    await message.answer(WELCOME_MESSAGE, reply_markup=get_contact_method_keyboard())
+    welcome_text = WELCOME_MESSAGE.format(name=user_name)
+    await message.answer(welcome_text, reply_markup=get_contact_method_keyboard())
     await state.set_state(CalculationStates.choosing_contact_method)
 
     chat_logger.log_message(
-        user_id=message.from_user.id, username="БОТ", message=WELCOME_MESSAGE, is_bot=True
+        user_id=message.from_user.id, username="БОТ", message=welcome_text, is_bot=True
     )
 
 
@@ -43,8 +45,11 @@ async def start_new_calculation(callback: CallbackQuery, state: FSMContext) -> N
     if callback.from_user:
         chat_logger.clear_chat_history(callback.from_user.id)
 
+    user_name = callback.from_user.first_name or "Пользователь"
+    welcome_text = WELCOME_MESSAGE.format(name=user_name)
+    
     await callback.message.answer(
-        text=WELCOME_MESSAGE,
+        text=welcome_text,
         reply_markup=get_contact_method_keyboard()
     )
 
@@ -53,7 +58,7 @@ async def start_new_calculation(callback: CallbackQuery, state: FSMContext) -> N
     chat_logger.log_message(
         user_id=callback.from_user.id,
         username="БОТ",
-        message=WELCOME_MESSAGE,
+        message=welcome_text,
         is_bot=True
     )
 

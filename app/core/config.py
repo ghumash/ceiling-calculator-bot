@@ -19,8 +19,8 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     # Contact info
-    contact_phone: str = "+7 (XXX) XXX-XX-XX"
-    contact_telegram: str = "@your_telegram"
+    contact_phone: str = Field(..., description="Контактный телефон менеджера")
+    contact_telegram: str = Field(..., description="Telegram контакт менеджера")
 
     # Цены - Базовый потолок MSD
     ceiling_base_price: int = 902
