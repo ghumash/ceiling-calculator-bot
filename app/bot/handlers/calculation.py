@@ -5,6 +5,7 @@ from datetime import datetime
 from pathlib import Path
 
 from aiogram import Bot, Router, F
+from aiogram.enums import ParseMode
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, FSInputFile, User
 
@@ -20,7 +21,6 @@ from app.templates.messages.texts import (
     AREA_QUESTION,
     AREA_ACCEPTED,
     AREA_NOTE_MIN,
-    AREA_VALIDATION_ERROR,
     AREA_INVALID_INPUT,
     PROFILE_QUESTION,
     PROFILE_ACCEPTED,
@@ -79,7 +79,8 @@ async def go_back(callback: CallbackQuery, state: FSMContext) -> None:
         welcome_text = WELCOME_MESSAGE.format(name=user_name)
         await callback.message.answer(
             text=welcome_text,
-            reply_markup=get_contact_method_keyboard()
+            reply_markup=get_contact_method_keyboard(),
+            parse_mode=ParseMode.HTML
         )
         await state.set_state(CalculationStates.choosing_contact_method)
         chat_logger.log_message(
@@ -142,7 +143,7 @@ async def ask_area(message: Message, state: FSMContext, user_id: int) -> None:
     """Запрашивает площадь помещения."""
     # Сохраняем предыдущее состояние
     await state.update_data(previous_state=CalculationStates.choosing_contact_method)
-    await message.answer(AREA_QUESTION, reply_markup=get_back_keyboard())
+    await message.answer(AREA_QUESTION, reply_markup=get_back_keyboard(), parse_mode=ParseMode.HTML)
     await state.set_state(CalculationStates.waiting_for_area)
 
     chat_logger.log_message(user_id=user_id, username="БОТ", message=AREA_QUESTION, is_bot=True)
@@ -153,10 +154,6 @@ async def process_area_input(message: Message, state: FSMContext) -> None:
     """Обработка текстового ввода площади."""
     try:
         area = float(message.text.replace(",", "."))
-
-        if not (5 <= area <= 500):
-            await message.answer(AREA_VALIDATION_ERROR)
-            return
 
         username = message.from_user.username or message.from_user.first_name
         chat_logger.log_message(
@@ -169,7 +166,7 @@ async def process_area_input(message: Message, state: FSMContext) -> None:
         await _process_area(message, state, area, message.from_user.id)
 
     except (ValueError, AttributeError):
-        await message.answer(AREA_INVALID_INPUT)
+        await message.answer(AREA_INVALID_INPUT, parse_mode=ParseMode.HTML)
 
 
 async def _process_area(message: Message, state: FSMContext, area: float, user_id: int) -> None:
@@ -182,7 +179,7 @@ async def _process_area(message: Message, state: FSMContext, area: float, user_i
         note = f"\n\n{AREA_NOTE_MIN}"
 
     response = AREA_ACCEPTED.format(area=area) + note
-    await message.answer(response)
+    await message.answer(response, parse_mode=ParseMode.HTML)
     chat_logger.log_message(user_id=user_id, username="БОТ", message=response, is_bot=True)
 
     # Переход к выбору профиля
@@ -218,7 +215,7 @@ async def _ask_profile(message: Message, state: FSMContext, user_id: int) -> Non
         except Exception as e:
             logger.error(f"Не удалось отправить изображение профиля {profile_photo_path}: {e}")
 
-    await message.answer(PROFILE_QUESTION, reply_markup=get_profile_keyboard())
+    await message.answer(PROFILE_QUESTION, reply_markup=get_profile_keyboard(), parse_mode=ParseMode.HTML)
     await state.set_state(CalculationStates.choosing_profile)
 
     chat_logger.log_message(user_id=user_id, username="БОТ", message=PROFILE_QUESTION, is_bot=True)
@@ -243,7 +240,7 @@ async def process_profile(callback: CallbackQuery, state: FSMContext) -> None:
     )
 
     response = PROFILE_ACCEPTED.format(profile_name=profile_name)
-    await callback.message.answer(response)
+    await callback.message.answer(response, parse_mode=ParseMode.HTML)
     chat_logger.log_message(
         user_id=callback.from_user.id, username="БОТ", message=response, is_bot=True
     )
@@ -265,7 +262,7 @@ async def _ask_cornice_length(message: Message, state: FSMContext, user_id: int)
     """Запрашивает длину карнизов."""
     # Сохраняем предыдущее состояние
     await state.update_data(previous_state=CalculationStates.choosing_profile)
-    await message.answer(CORNICE_LENGTH_QUESTION, reply_markup=get_back_keyboard())
+    await message.answer(CORNICE_LENGTH_QUESTION, reply_markup=get_back_keyboard(), parse_mode=ParseMode.HTML)
     await state.set_state(CalculationStates.entering_cornice_length)
 
     chat_logger.log_message(
@@ -280,13 +277,13 @@ async def process_cornice_length(message: Message, state: FSMContext) -> None:
         length = float(message.text.replace(",", "."))
 
         if length < 0 or length > 100:
-            await message.answer(CORNICE_VALIDATION_ERROR)
+            await message.answer(CORNICE_VALIDATION_ERROR, parse_mode=ParseMode.HTML)
             return
 
         await state.update_data(cornice_length=length)
 
         if length == 0:
-            await message.answer(NO_CORNICE)
+            await message.answer(NO_CORNICE, parse_mode=ParseMode.HTML)
             chat_logger.log_message(
                 user_id=message.from_user.id, username="БОТ", message=NO_CORNICE, is_bot=True
             )
@@ -297,7 +294,7 @@ async def process_cornice_length(message: Message, state: FSMContext) -> None:
             await _ask_cornice_type(message, state, message.from_user.id)
 
     except (ValueError, AttributeError):
-        await message.answer(CORNICE_INVALID_INPUT)
+        await message.answer(CORNICE_INVALID_INPUT, parse_mode=ParseMode.HTML)
 
 
 async def _ask_cornice_type(message: Message, state: FSMContext, user_id: int) -> None:
@@ -328,7 +325,7 @@ async def _ask_cornice_type(message: Message, state: FSMContext, user_id: int) -
         except Exception as e:
             logger.error(f"Не удалось отправить изображение карниза {cornice_photo_path}: {e}")
  
-    await message.answer(CORNICE_TYPE_QUESTION, reply_markup=get_cornice_keyboard())
+    await message.answer(CORNICE_TYPE_QUESTION, reply_markup=get_cornice_keyboard(), parse_mode=ParseMode.HTML)
     await state.set_state(CalculationStates.choosing_cornice_type)
 
     chat_logger.log_message(
@@ -358,7 +355,7 @@ async def process_cornice_type(callback: CallbackQuery, state: FSMContext) -> No
     )
 
     response = CORNICE_ACCEPTED.format(cornice_name=cornice_name, length=length)
-    await callback.message.answer(response)
+    await callback.message.answer(response, parse_mode=ParseMode.HTML)
     chat_logger.log_message(
         user_id=callback.from_user.id, username="БОТ", message=response, is_bot=True
     )
@@ -383,7 +380,7 @@ async def _ask_spotlights(message: Message, state: FSMContext, user_id: int) -> 
         previous_state = CalculationStates.choosing_cornice_type
     await state.update_data(previous_state=previous_state)
     
-    await message.answer(SPOTLIGHTS_QUESTION, reply_markup=get_back_keyboard())
+    await message.answer(SPOTLIGHTS_QUESTION, reply_markup=get_back_keyboard(), parse_mode=ParseMode.HTML)
     await state.set_state(CalculationStates.entering_spotlights)
 
     chat_logger.log_message(
@@ -398,7 +395,7 @@ async def process_spotlights_input(message: Message, state: FSMContext) -> None:
         count = int(message.text)
 
         if count < 0 or count > 100:
-            await message.answer(COUNT_VALIDATION_ERROR)
+            await message.answer(COUNT_VALIDATION_ERROR, parse_mode=ParseMode.HTML)
             return
 
         username = message.from_user.username or message.from_user.first_name
@@ -412,7 +409,7 @@ async def process_spotlights_input(message: Message, state: FSMContext) -> None:
         await _process_spotlights(message, state, count, message.from_user.id)
 
     except (ValueError, AttributeError):
-        await message.answer(SPOTLIGHTS_INVALID_INPUT)
+        await message.answer(SPOTLIGHTS_INVALID_INPUT, parse_mode=ParseMode.HTML)
 
 
 async def _process_spotlights(
@@ -422,7 +419,7 @@ async def _process_spotlights(
     await state.update_data(spotlights=count)
 
     response = SPOTLIGHTS_ACCEPTED.format(count=count)
-    await message.answer(response)
+    await message.answer(response, parse_mode=ParseMode.HTML)
     chat_logger.log_message(user_id=user_id, username="БОТ", message=response, is_bot=True)
 
     # Переход к люстрам
@@ -438,7 +435,7 @@ async def _ask_chandeliers(message: Message, state: FSMContext, user_id: int) ->
     """Запрашивает количество люстр."""
     # Сохраняем предыдущее состояние
     await state.update_data(previous_state=CalculationStates.entering_spotlights)
-    await message.answer(CHANDELIERS_QUESTION, reply_markup=get_back_keyboard())
+    await message.answer(CHANDELIERS_QUESTION, reply_markup=get_back_keyboard(), parse_mode=ParseMode.HTML)
     await state.set_state(CalculationStates.entering_chandeliers)
 
     chat_logger.log_message(
@@ -453,7 +450,7 @@ async def process_chandeliers_input(message: Message, state: FSMContext) -> None
         count = int(message.text)
 
         if count < 0 or count > 100:
-            await message.answer(COUNT_VALIDATION_ERROR)
+            await message.answer(COUNT_VALIDATION_ERROR, parse_mode=ParseMode.HTML)
             return
 
         username = message.from_user.username or message.from_user.first_name
@@ -467,7 +464,7 @@ async def process_chandeliers_input(message: Message, state: FSMContext) -> None
         await _process_chandeliers(message, state, count, message.from_user)
 
     except (ValueError, AttributeError):
-        await message.answer(CHANDELIERS_INVALID_INPUT)
+        await message.answer(CHANDELIERS_INVALID_INPUT, parse_mode=ParseMode.HTML)
 
 
 async def _process_chandeliers(
@@ -477,7 +474,7 @@ async def _process_chandeliers(
     await state.update_data(chandeliers=count)
 
     response = CHANDELIERS_ACCEPTED.format(count=count)
-    await message.answer(response)
+    await message.answer(response, parse_mode=ParseMode.HTML)
     chat_logger.log_message(user_id=user.id, username="БОТ", message=response, is_bot=True)
 
     # Переход к результату
@@ -537,7 +534,7 @@ async def _show_result(message: Message, state: FSMContext, user: User) -> None:
         total=calculation.total_cost,
     )
 
-    await message.answer(result_text, reply_markup=get_result_keyboard())
+    await message.answer(result_text, reply_markup=get_result_keyboard(), parse_mode=ParseMode.HTML)
 
     await state.set_state(CalculationStates.showing_result)
 

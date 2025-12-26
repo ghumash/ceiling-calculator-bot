@@ -1,6 +1,7 @@
 """Обработчик команды /start."""
 
 from aiogram import Router, F
+from aiogram.enums import ParseMode
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
@@ -27,7 +28,7 @@ async def cmd_start(message: Message, state: FSMContext) -> None:
     )
 
     welcome_text = WELCOME_MESSAGE.format(name=user_name)
-    await message.answer(welcome_text, reply_markup=get_contact_method_keyboard())
+    await message.answer(welcome_text, reply_markup=get_contact_method_keyboard(), parse_mode=ParseMode.HTML)
     await state.set_state(CalculationStates.choosing_contact_method)
 
     chat_logger.log_message(
@@ -50,7 +51,8 @@ async def start_new_calculation(callback: CallbackQuery, state: FSMContext) -> N
     
     await callback.message.answer(
         text=welcome_text,
-        reply_markup=get_contact_method_keyboard()
+        reply_markup=get_contact_method_keyboard(),
+        parse_mode=ParseMode.HTML
     )
 
     await state.set_state(CalculationStates.choosing_contact_method)
@@ -73,7 +75,7 @@ async def contact_manager(callback: CallbackQuery, state: FSMContext) -> None:
         telegram=settings.contact_telegram
     )
 
-    await callback.message.answer(text=contacts)
+    await callback.message.answer(text=contacts, parse_mode=ParseMode.HTML)
     
     # Очищаем состояние только если мы в процессе выбора способа связи
     current_state = await state.get_state()
