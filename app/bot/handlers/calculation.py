@@ -7,7 +7,7 @@ from pathlib import Path
 from aiogram import Bot, Router, F
 from aiogram.enums import ParseMode
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, CallbackQuery, FSInputFile, User
+from aiogram.types import Message, CallbackQuery, User
 
 from app.bot.states import CalculationStates
 from app.bot.keyboards.inline import (
@@ -27,7 +27,6 @@ from app.templates.messages.texts import (
     CORNICE_TYPE_QUESTION,
     CORNICE_ACCEPTED,
     NO_CORNICE,
-    CORNICE_VALIDATION_ERROR,
     CORNICE_INVALID_INPUT,
     SPOTLIGHTS_QUESTION,
     SPOTLIGHTS_ACCEPTED,
@@ -35,22 +34,26 @@ from app.templates.messages.texts import (
     CHANDELIERS_QUESTION,
     CHANDELIERS_ACCEPTED,
     CHANDELIERS_INVALID_INPUT,
-    COUNT_VALIDATION_ERROR,
     RESULT_MESSAGE,
-    RESULT_DETAILS_CEILING,
-    RESULT_DETAILS_PROFILE,
-    RESULT_DETAILS_CORNICE,
-    RESULT_DETAILS_SPOTLIGHTS,
-    RESULT_DETAILS_CHANDELIERS,
     ADMIN_REPORT,
     WELCOME_MESSAGE,
     get_profile_name,
     get_cornice_name,
+    get_cornice_validation_error,
+    get_count_validation_error,
+    format_ceiling_details,
+    format_profile_details,
+    format_cornice_details,
+    format_spotlights_details,
+    format_chandeliers_details,
 )
 from app.services.chat_logger import chat_logger
 from app.services.calculator import calculate_total
 from app.schemas.calculation import CalculationData
 from app.core.config import settings
+from app.utils.validation import parse_float, parse_int, validate_range
+from app.utils.user import get_user_display_name
+from app.utils.images import send_image_if_exists
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -59,6 +62,86 @@ router = Router()
 # ============================================
 # ВОЗВРАТ НАЗАД
 # ============================================
+
+
+def _get_previous_lighting_state(data: dict) -> CalculationStates:
+    """Определяет предыдущее состояние перед освещением.
+    
+    Args:
+        data: Данные состояния
+        
+    Returns:
+        Предыдущее состояние
+    """
+    profile_type = data.get("profile_type")
+    if profile_type == "insert":
+        return CalculationStates.choosing_profile
+    if data.get("cornice_length", 0) == 0:
+        return CalculationStates.choosing_cornice_type
+    return CalculationStates.entering_cornice_length
+
+
+async def _go_back_to_contact_method(callback: CallbackQuery, state: FSMContext, user_id: int) -> None:
+    """Возврат к выбору способа связи."""
+    await state.clear()
+    user_name = callback.from_user.first_name or "Пользователь"
+    welcome_text = WELCOME_MESSAGE.format(name=user_name)
+    await callback.message.answer(
+        text=welcome_text,
+        reply_markup=get_contact_method_keyboard(),
+        parse_mode=ParseMode.HTML
+    )
+    await state.set_state(CalculationStates.choosing_contact_method)
+    chat_logger.log_message(
+        user_id=user_id, username="БОТ", message=welcome_text, is_bot=True
+    )
+
+
+async def _go_back_to_area(callback: CallbackQuery, state: FSMContext, user_id: int) -> None:
+    """Возврат к вводу площади."""
+    await state.update_data(profile_type=None, previous_state=CalculationStates.choosing_contact_method)
+    await ask_area(callback.message, state, user_id)
+
+
+async def _go_back_to_profile(callback: CallbackQuery, state: FSMContext, user_id: int) -> None:
+    """Возврат к выбору профиля."""
+    await state.update_data(cornice_type=None, cornice_length=None, previous_state=CalculationStates.choosing_profile)
+    await _ask_profile(callback.message, state, user_id)
+
+
+async def _go_back_to_cornice_type(callback: CallbackQuery, state: FSMContext, user_id: int) -> None:
+    """Возврат к выбору типа карниза."""
+    await state.update_data(cornice_length=None, previous_state=CalculationStates.choosing_profile)
+    await _ask_cornice_type(callback.message, state, user_id)
+
+
+async def _go_back_to_cornice_length(callback: CallbackQuery, state: FSMContext, user_id: int) -> None:
+    """Возврат к вводу длины карнизов."""
+    await state.update_data(previous_state=CalculationStates.choosing_cornice_type)
+    await _ask_cornice_length(callback.message, state, user_id)
+
+
+async def _go_back_to_spotlights(callback: CallbackQuery, state: FSMContext, user_id: int, data: dict) -> None:
+    """Возврат к вводу светильников."""
+    await state.update_data(spotlights=None)
+    previous_state = _get_previous_lighting_state(data)
+    await state.update_data(previous_state=previous_state)
+    
+    profile_type = data.get("profile_type")
+    if profile_type == "insert":
+        await _ask_profile(callback.message, state, user_id)
+    elif data.get("cornice_length", 0) == 0:
+        await _ask_cornice_type(callback.message, state, user_id)
+    else:
+        await _ask_cornice_length(callback.message, state, user_id)
+
+
+async def _go_back_to_chandeliers(callback: CallbackQuery, state: FSMContext, user_id: int, data: dict) -> None:
+    """Возврат к вводу люстр."""
+    await state.update_data(chandeliers=None)
+    previous_state = _get_previous_lighting_state(data)
+    await state.update_data(previous_state=previous_state)
+    await _ask_spotlights(callback.message, state, user_id)
 
 
 @router.callback_query(F.data == "go_back")
@@ -70,66 +153,18 @@ async def go_back(callback: CallbackQuery, state: FSMContext) -> None:
     current_state = await state.get_state()
     user_id = callback.from_user.id
     
-    # Очищаем данные текущего шага при возврате
-    if current_state == CalculationStates.waiting_for_area:
-        # Возврат к выбору способа связи
-        await state.clear()
-        user_name = callback.from_user.first_name or "Пользователь"
-        welcome_text = WELCOME_MESSAGE.format(name=user_name)
-        await callback.message.answer(
-            text=welcome_text,
-            reply_markup=get_contact_method_keyboard(),
-            parse_mode=ParseMode.HTML
-        )
-        await state.set_state(CalculationStates.choosing_contact_method)
-        chat_logger.log_message(
-            user_id=user_id, username="БОТ", message=welcome_text, is_bot=True
-        )
-        
-    elif current_state == CalculationStates.choosing_profile:
-        # Возврат к площади - удаляем профиль из данных
-        await state.update_data(profile_type=None, previous_state=CalculationStates.choosing_contact_method)
-        await ask_area(callback.message, state, user_id)
-        
-    elif current_state == CalculationStates.choosing_cornice_type:
-        # Возврат к профилю - удаляем тип карниза
-        await state.update_data(cornice_type=None, cornice_length=None, previous_state=CalculationStates.choosing_profile)
-        await _ask_profile(callback.message, state, user_id)
-        
-    elif current_state == CalculationStates.entering_cornice_length:
-        # Возврат к типу карниза - удаляем длину
-        await state.update_data(cornice_length=None, previous_state=CalculationStates.choosing_profile)
-        await _ask_cornice_type(callback.message, state, user_id)
-        
-    elif current_state == CalculationStates.entering_spotlights:
-        # Возврат к карнизам или профилю
-        await state.update_data(spotlights=None, previous_state=None)
-        profile_type = data.get("profile_type")
-        if profile_type == "insert":
-            # Профиль "insert" - возврат к профилю
-            await state.update_data(previous_state=CalculationStates.waiting_for_area)
-            await _ask_profile(callback.message, state, user_id)
-        elif data.get("cornice_length", 0) == 0:
-            # Нет карнизов - возврат к типу карниза
-            await state.update_data(previous_state=CalculationStates.choosing_profile)
-            await _ask_cornice_type(callback.message, state, user_id)
-        else:
-            # Есть карнизы - возврат к длине карнизов
-            await state.update_data(previous_state=CalculationStates.choosing_cornice_type)
-            await _ask_cornice_length(callback.message, state, user_id)
-        
-    elif current_state == CalculationStates.entering_chandeliers:
-        # Возврат к светильникам - удаляем люстры
-        await state.update_data(chandeliers=None, previous_state=None)
-        profile_type = data.get("profile_type")
-        if profile_type == "insert":
-            previous_state = CalculationStates.choosing_profile
-        elif data.get("cornice_length", 0) == 0:
-            previous_state = CalculationStates.choosing_cornice_type
-        else:
-            previous_state = CalculationStates.entering_cornice_length
-        await state.update_data(previous_state=previous_state)
-        await _ask_spotlights(callback.message, state, user_id)
+    handlers = {
+        CalculationStates.waiting_for_area: _go_back_to_contact_method,
+        CalculationStates.choosing_profile: _go_back_to_area,
+        CalculationStates.choosing_cornice_type: _go_back_to_profile,
+        CalculationStates.entering_cornice_length: _go_back_to_cornice_type,
+        CalculationStates.entering_spotlights: lambda cb, st, uid: _go_back_to_spotlights(cb, st, uid, data),
+        CalculationStates.entering_chandeliers: lambda cb, st, uid: _go_back_to_chandeliers(cb, st, uid, data),
+    }
+    
+    handler = handlers.get(current_state)
+    if handler:
+        await handler(callback, state, user_id)
     
     chat_logger.log_message(
         user_id=user_id,
@@ -161,21 +196,20 @@ async def process_area_input(message: Message, state: FSMContext) -> None:
         await message.answer(AREA_INVALID_INPUT, parse_mode=ParseMode.HTML)
         return
 
-    try:
-        area = float(message.text.strip().replace(",", "."))
-
-        username = message.from_user.username or message.from_user.first_name
-        chat_logger.log_message(
-            user_id=message.from_user.id,
-            username=username,
-            message=f"Площадь: {area} м²",
-            is_bot=False,
-        )
-
-        await _process_area(message, state, area, message.from_user.id)
-
-    except ValueError:
+    area = parse_float(message.text)
+    if area is None:
         await message.answer(AREA_INVALID_INPUT, parse_mode=ParseMode.HTML)
+        return
+
+    username = get_user_display_name(message.from_user)
+    chat_logger.log_message(
+        user_id=message.from_user.id,
+        username=username,
+        message=f"Площадь: {area} м²",
+        is_bot=False,
+    )
+
+    await _process_area(message, state, area, message.from_user.id)
 
 
 async def _process_area(message: Message, state: FSMContext, area: float, user_id: int) -> None:
@@ -197,27 +231,13 @@ async def _process_area(message: Message, state: FSMContext, area: float, user_i
 
 async def _ask_profile(message: Message, state: FSMContext, user_id: int) -> None:
     """Запрашивает тип профиля."""
-    # Сохраняем предыдущее состояние
     await state.update_data(previous_state=CalculationStates.waiting_for_area)
     
-    # Отправка фото с вариантами профилей
-    # Приоритет: единое фото profiles_all.jpg, иначе первое доступное
-    profiles_path = Path("static/images/profiles")
+    profiles_path = Path(settings.profiles_dir)
     profile_photo_path = profiles_path / "profiles_all.jpg"
+    fallback_paths = ["insert.jpg", "shadow_eco.jpg", "floating.jpg"]
     
-    if not profile_photo_path.exists():
-        # Fallback: используем первое доступное фото
-        for alt_photo in ["insert.jpg", "shadow_eco.jpg", "floating.jpg"]:
-            alt_path = profiles_path / alt_photo
-            if alt_path.exists():
-                profile_photo_path = alt_path
-                break
-    
-    if profile_photo_path.exists():
-        try:
-            await message.answer_photo(photo=FSInputFile(profile_photo_path))
-        except Exception as e:
-            logger.error(f"Не удалось отправить изображение профиля {profile_photo_path}: {e}")
+    await send_image_if_exists(message, profile_photo_path, fallback_paths)
 
     await message.answer(PROFILE_QUESTION, reply_markup=get_profile_keyboard(), parse_mode=ParseMode.HTML)
     await state.set_state(CalculationStates.choosing_profile)
@@ -235,7 +255,7 @@ async def process_profile(callback: CallbackQuery, state: FSMContext) -> None:
 
     await state.update_data(profile_type=profile_type)
 
-    username = callback.from_user.username or callback.from_user.first_name
+    username = get_user_display_name(callback.from_user)
     chat_logger.log_message(
         user_id=callback.from_user.id,
         username=username,
@@ -264,31 +284,13 @@ async def process_profile(callback: CallbackQuery, state: FSMContext) -> None:
 
 async def _ask_cornice_type(message: Message, state: FSMContext, user_id: int) -> None:
     """Запрашивает тип карниза."""
-    # Сохраняем предыдущее состояние
     await state.update_data(previous_state=CalculationStates.choosing_profile)
     
-    # Отправка фото с вариантами карнизов
-    # Приоритет: единое фото cornices_all.jpg или carnices_all.jpg, иначе первое доступное
-    cornices_path = Path("static/images/cornices")
+    cornices_path = Path(settings.cornices_dir)
     cornice_photo_path = cornices_path / "cornices_all.jpg"
+    fallback_paths = ["carnices_all.jpg", "pk14.jpg", "pk5.jpg", "bp40.jpg"]
     
-    # Поддержка опечатки в имени файла
-    if not cornice_photo_path.exists():
-        cornice_photo_path = cornices_path / "carnices_all.jpg"
-    
-    if not cornice_photo_path.exists():
-        # Fallback: используем первое доступное фото
-        for alt_photo in ["pk14.jpg", "pk5.jpg", "bp40.jpg"]:
-            alt_path = cornices_path / alt_photo
-            if alt_path.exists():
-                cornice_photo_path = alt_path
-                break
-    
-    if cornice_photo_path.exists():
-        try:
-            await message.answer_photo(photo=FSInputFile(cornice_photo_path))
-        except Exception as e:
-            logger.error(f"Не удалось отправить изображение карниза {cornice_photo_path}: {e}")
+    await send_image_if_exists(message, cornice_photo_path, fallback_paths)
  
     await message.answer(CORNICE_TYPE_QUESTION, reply_markup=get_cornice_keyboard(), parse_mode=ParseMode.HTML)
     await state.set_state(CalculationStates.choosing_cornice_type)
@@ -320,7 +322,7 @@ async def process_cornice_type(callback: CallbackQuery, state: FSMContext) -> No
     cornice_name = get_cornice_name(cornice_type)
     await state.update_data(cornice_type=cornice_type)
     
-    username = callback.from_user.username or callback.from_user.first_name
+    username = get_user_display_name(callback.from_user)
     chat_logger.log_message(
         user_id=callback.from_user.id,
         username=username,
@@ -351,38 +353,40 @@ async def process_cornice_length(message: Message, state: FSMContext) -> None:
         await message.answer(CORNICE_INVALID_INPUT, parse_mode=ParseMode.HTML)
         return
 
-    try:
-        length = float(message.text.strip().replace(",", "."))
-
-        if length < 0 or length > 100:
-            await message.answer(CORNICE_VALIDATION_ERROR, parse_mode=ParseMode.HTML)
-            return
-
-        await state.update_data(cornice_length=length)
-
-        data = await state.get_data()
-        cornice_type = data.get("cornice_type")
-        cornice_name = get_cornice_name(cornice_type)
-        
-        username = message.from_user.username or message.from_user.first_name
-        chat_logger.log_message(
-            user_id=message.from_user.id,
-            username=username,
-            message=f"Длина карнизов: {length} пог.м",
-            is_bot=False,
-        )
-
-        response = CORNICE_ACCEPTED.format(cornice_name=cornice_name, length=length)
-        await message.answer(response, parse_mode=ParseMode.HTML)
-        chat_logger.log_message(
-            user_id=message.from_user.id, username="БОТ", message=response, is_bot=True
-        )
-
-        # Переход к освещению
-        await _ask_spotlights(message, state, message.from_user.id)
-
-    except ValueError:
+    length = parse_float(message.text)
+    if length is None:
         await message.answer(CORNICE_INVALID_INPUT, parse_mode=ParseMode.HTML)
+        return
+
+    if not validate_range(length, 0.0, settings.max_cornice_length):
+        await message.answer(
+            get_cornice_validation_error(settings.max_cornice_length),
+            parse_mode=ParseMode.HTML
+        )
+        return
+
+    await state.update_data(cornice_length=length)
+
+    data = await state.get_data()
+    cornice_type = data.get("cornice_type")
+    cornice_name = get_cornice_name(cornice_type)
+    
+    username = get_user_display_name(message.from_user)
+    chat_logger.log_message(
+        user_id=message.from_user.id,
+        username=username,
+        message=f"Длина карнизов: {length} пог.м",
+        is_bot=False,
+    )
+
+    response = CORNICE_ACCEPTED.format(cornice_name=cornice_name, length=length)
+    await message.answer(response, parse_mode=ParseMode.HTML)
+    chat_logger.log_message(
+        user_id=message.from_user.id, username="БОТ", message=response, is_bot=True
+    )
+
+    # Переход к освещению
+    await _ask_spotlights(message, state, message.from_user.id)
 
 
 # ============================================
@@ -392,15 +396,8 @@ async def process_cornice_length(message: Message, state: FSMContext) -> None:
 
 async def _ask_spotlights(message: Message, state: FSMContext, user_id: int) -> None:
     """Запрашивает количество точечных светильников."""
-    # Сохраняем предыдущее состояние
     data = await state.get_data()
-    profile_type = data.get("profile_type")
-    if profile_type == "insert":
-        previous_state = CalculationStates.choosing_profile
-    elif data.get("cornice_length", 0) == 0:
-        previous_state = CalculationStates.choosing_cornice_type
-    else:
-        previous_state = CalculationStates.entering_cornice_length
+    previous_state = _get_previous_lighting_state(data)
     await state.update_data(previous_state=previous_state)
     
     await message.answer(SPOTLIGHTS_QUESTION, reply_markup=get_back_keyboard(), parse_mode=ParseMode.HTML)
@@ -418,25 +415,27 @@ async def process_spotlights_input(message: Message, state: FSMContext) -> None:
         await message.answer(SPOTLIGHTS_INVALID_INPUT, parse_mode=ParseMode.HTML)
         return
 
-    try:
-        count = int(message.text.strip())
-
-        if count < 0 or count > 100:
-            await message.answer(COUNT_VALIDATION_ERROR, parse_mode=ParseMode.HTML)
-            return
-
-        username = message.from_user.username or message.from_user.first_name
-        chat_logger.log_message(
-            user_id=message.from_user.id,
-            username=username,
-            message=f"Светильники: {count} шт",
-            is_bot=False,
-        )
-
-        await _process_spotlights(message, state, count, message.from_user.id)
-
-    except ValueError:
+    count = parse_int(message.text)
+    if count is None:
         await message.answer(SPOTLIGHTS_INVALID_INPUT, parse_mode=ParseMode.HTML)
+        return
+
+    if not validate_range(count, 0, settings.max_count):
+        await message.answer(
+            get_count_validation_error(settings.max_count),
+            parse_mode=ParseMode.HTML
+        )
+        return
+
+    username = get_user_display_name(message.from_user)
+    chat_logger.log_message(
+        user_id=message.from_user.id,
+        username=username,
+        message=f"Светильники: {count} шт",
+        is_bot=False,
+    )
+
+    await _process_spotlights(message, state, count, message.from_user.id)
 
 
 async def _process_spotlights(
@@ -477,25 +476,27 @@ async def process_chandeliers_input(message: Message, state: FSMContext) -> None
         await message.answer(CHANDELIERS_INVALID_INPUT, parse_mode=ParseMode.HTML)
         return
 
-    try:
-        count = int(message.text.strip())
-
-        if count < 0 or count > 100:
-            await message.answer(COUNT_VALIDATION_ERROR, parse_mode=ParseMode.HTML)
-            return
-
-        username = message.from_user.username or message.from_user.first_name
-        chat_logger.log_message(
-            user_id=message.from_user.id,
-            username=username,
-            message=f"Люстры: {count} шт",
-            is_bot=False,
-        )
-
-        await _process_chandeliers(message, state, count, message.from_user)
-
-    except ValueError:
+    count = parse_int(message.text)
+    if count is None:
         await message.answer(CHANDELIERS_INVALID_INPUT, parse_mode=ParseMode.HTML)
+        return
+
+    if not validate_range(count, 0, settings.max_count):
+        await message.answer(
+            get_count_validation_error(settings.max_count),
+            parse_mode=ParseMode.HTML
+        )
+        return
+
+    username = get_user_display_name(message.from_user)
+    chat_logger.log_message(
+        user_id=message.from_user.id,
+        username=username,
+        message=f"Люстры: {count} шт",
+        is_bot=False,
+    )
+
+    await _process_chandeliers(message, state, count, message.from_user)
 
 
 async def _process_chandeliers(
@@ -530,7 +531,6 @@ def _format_result_info(calculation: CalculationData) -> tuple[str, str, str]:
     if calculation.area < settings.min_area_for_calculation:
         area_note = f"• Расчёт от минимальной площади: {calculation.area_for_calculation} м²\n"
 
-    # Периметр профиля вычисляется автоматически: площадь × 1.7
     profile_info = ""
     if calculation.profile_type != "insert":
         profile_name = get_profile_name(calculation.profile_type)
@@ -575,7 +575,69 @@ async def _show_result(message: Message, state: FSMContext, user: User) -> None:
     await _notify_admin(message.bot, user, calculation, data)
 
 
-async def _notify_admin(bot: Bot, user: User, calculation, data: dict) -> None:
+def _format_admin_details(calculation: CalculationData) -> str:
+    """Форматирует детализацию расчёта для админа.
+    
+    Args:
+        calculation: Данные расчёта
+        
+    Returns:
+        Отформатированная детализация
+    """
+    details = format_ceiling_details(
+        calculation.area_for_calculation,
+        calculation.ceiling_cost,
+        settings.ceiling_base_price,
+    )
+
+    if calculation.profile_cost > 0:
+        perimeter = calculation.area * settings.perimeter_coefficient
+        profile_name = get_profile_name(calculation.profile_type)
+        details += format_profile_details(
+            profile_name, perimeter, calculation.profile_cost
+        )
+
+    if calculation.cornice_cost > 0:
+        cornice_name = get_cornice_name(calculation.cornice_type)
+        if cornice_name:
+            details += format_cornice_details(
+                cornice_name, calculation.cornice_length, calculation.cornice_cost
+            )
+
+    if calculation.spotlights_cost > 0:
+        details += format_spotlights_details(
+            calculation.spotlights,
+            calculation.spotlights_cost,
+            settings.spotlight_price,
+        )
+
+    if calculation.chandeliers_cost > 0:
+        details += format_chandeliers_details(
+            calculation.chandeliers,
+            calculation.chandeliers_cost,
+            settings.chandelier_price,
+        )
+
+    return details
+
+
+async def _send_admin_notification(bot: Bot, admin_id: int, report: str) -> None:
+    """Отправляет уведомление одному админу.
+    
+    Args:
+        bot: Экземпляр бота
+        admin_id: ID админа
+        report: Текст отчёта
+    """
+    try:
+        await bot.send_message(chat_id=admin_id, text=report)
+    except Exception as e:
+        error_msg = str(e).lower()
+        if "chat not found" not in error_msg and "bot was blocked" not in error_msg:
+            logger.warning(f"Не удалось отправить уведомление админу {admin_id}: {e}")
+
+
+async def _notify_admin(bot: Bot, user: User, calculation: CalculationData, data: dict) -> None:
     """Отправляет уведомление админам о завершении расчёта."""
     if not bot or not settings.admin_ids_list:
         return
@@ -584,35 +646,8 @@ async def _notify_admin(bot: Bot, user: User, calculation, data: dict) -> None:
         username = f"@{user.username}" if user.username else "нет username"
         date = datetime.now().strftime("%d.%m.%Y %H:%M")
 
-        profile_name = get_profile_name(calculation.profile_type)
         area_note, profile_info, lighting_info = _format_result_info(calculation)
-
-        # Детализация
-        details = RESULT_DETAILS_CEILING.format(
-            area_calc=calculation.area_for_calculation, cost=calculation.ceiling_cost
-        )
-
-        if calculation.profile_cost > 0:
-            perimeter = calculation.area * settings.perimeter_coefficient
-            details += RESULT_DETAILS_PROFILE.format(
-                name=profile_name, length=perimeter, cost=calculation.profile_cost
-            )
-
-        if calculation.cornice_cost > 0:
-            cornice_name = get_cornice_name(calculation.cornice_type)
-            details += RESULT_DETAILS_CORNICE.format(
-                type=cornice_name, length=calculation.cornice_length, cost=calculation.cornice_cost
-            )
-
-        if calculation.spotlights_cost > 0:
-            details += RESULT_DETAILS_SPOTLIGHTS.format(
-                count=calculation.spotlights, cost=calculation.spotlights_cost
-            )
-
-        if calculation.chandeliers_cost > 0:
-            details += RESULT_DETAILS_CHANDELIERS.format(
-                count=calculation.chandeliers, cost=calculation.chandeliers_cost
-            )
+        details = _format_admin_details(calculation)
 
         admin_report = ADMIN_REPORT.format(
             user_id=user.id,
@@ -628,12 +663,7 @@ async def _notify_admin(bot: Bot, user: User, calculation, data: dict) -> None:
         )
 
         for admin_id in settings.admin_ids_list:
-            try:
-                await bot.send_message(chat_id=admin_id, text=admin_report)
-            except Exception as e:
-                error_msg = str(e).lower()
-                if "chat not found" not in error_msg and "bot was blocked" not in error_msg:
-                    logger.warning(f"Не удалось отправить уведомление админу {admin_id}: {e}")
+            await _send_admin_notification(bot, admin_id, admin_report)
 
     except Exception as e:
         logger.error(f"Ошибка отправки уведомления админу: {e}")

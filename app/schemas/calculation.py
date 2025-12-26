@@ -29,5 +29,5 @@ class CalculationData(BaseModel):
     chandeliers_cost: float = Field(default=0, description="Стоимость установки люстр")
 
     # Итого
-    ceiling_cost: float = Field(default=0, description="Стоимость потолка (площадь × 902)")
+    ceiling_cost: float = Field(default=0, description="Стоимость потолка")
     total_cost: float = Field(default=0, description="Общая стоимость")

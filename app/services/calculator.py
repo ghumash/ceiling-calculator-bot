@@ -33,7 +33,6 @@ def calculate_profile_cost(area: float, profile_type: str) -> float:
     if profile_type == "insert":
         return 0.0
 
-    # Приблизительный периметр = площадь × 1.4
     approximate_perimeter = area * settings.perimeter_coefficient
 
     profile_prices = {

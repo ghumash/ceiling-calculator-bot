@@ -42,6 +42,14 @@ class Settings(BaseSettings):
     spotlight_price: int = 513
     chandelier_price: int = 550
 
+    # Валидация
+    max_cornice_length: float = 100.0
+    max_count: int = 100
+
+    # Пути к изображениям
+    profiles_dir: str = "static/images/profiles"
+    cornices_dir: str = "static/images/cornices"
+
     @property
     def admin_ids_list(self) -> list[int]:
         """Возвращает список ID админов."""

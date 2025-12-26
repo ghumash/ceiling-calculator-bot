@@ -12,6 +12,7 @@ from app.templates.messages.texts import WELCOME_MESSAGE, MANAGER_CONTACTS
 from app.services.chat_logger import chat_logger
 from app.core.config import settings
 from app.bot.handlers.calculation import ask_area
+from app.utils.user import get_user_display_name
 
 router = Router()
 
@@ -21,7 +22,7 @@ async def cmd_start(message: Message, state: FSMContext) -> None:
     """Обработчик команды /start."""
     await state.clear()
 
-    username = message.from_user.username or message.from_user.first_name
+    username = get_user_display_name(message.from_user)
     user_name = message.from_user.first_name or "Пользователь"
     chat_logger.log_message(
         user_id=message.from_user.id, username=username, message="/start", is_bot=False

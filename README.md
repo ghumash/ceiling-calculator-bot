@@ -26,7 +26,7 @@ cp .env.example .env
 - `MIN_AREA_FOR_CALCULATION=20` - минимальная площадь для расчёта
 - `PROFILE_SHADOW_PRICE=718` - цена теневого профиля за м
 - `PROFILE_FLOATING_PRICE=1845` - цена парящего профиля за м
-- `PERIMETER_COEFFICIENT=1.4` - коэффициент расчёта периметра
+- `PERIMETER_COEFFICIENT=1.7` - коэффициент расчёта периметра
 - `CORNICE_PK14_PRICE=3844` - цена карниза ПК-14 за м
 - `CORNICE_PK5_PRICE=2819` - цена карниза ПК-5 за м
 - `CORNICE_BP40_PRICE=1282` - цена карниза БП-40 за м

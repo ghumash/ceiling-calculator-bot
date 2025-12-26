@@ -30,8 +30,8 @@ async def main() -> None:
 
     # Проверка обязательных директорий
     Path("chat_logs").mkdir(exist_ok=True)
-    Path("static/images/profiles").mkdir(parents=True, exist_ok=True)
-    Path("static/images/cornices").mkdir(parents=True, exist_ok=True)
+    Path(settings.profiles_dir).mkdir(parents=True, exist_ok=True)
+    Path(settings.cornices_dir).mkdir(parents=True, exist_ok=True)
 
     # Инициализация бота
     try:
