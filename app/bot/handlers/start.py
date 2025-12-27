@@ -13,6 +13,7 @@ from app.services.chat_logger import chat_logger
 from app.core.config import settings
 from app.bot.handlers.calculation import ask_area
 from app.utils.user import get_user_display_name
+from app.utils.callback import safe_answer_callback
 
 router = Router()
 
@@ -40,7 +41,7 @@ async def cmd_start(message: Message, state: FSMContext) -> None:
 @router.callback_query(F.data == "start_calculation")
 async def start_new_calculation(callback: CallbackQuery, state: FSMContext) -> None:
     """Начало нового расчёта — показ приветствия и выбора способа связи."""
-    await callback.answer()
+    await safe_answer_callback(callback)
     await state.clear()
 
     # Очистка истории чата для нового расчёта
@@ -69,7 +70,7 @@ async def start_new_calculation(callback: CallbackQuery, state: FSMContext) -> N
 @router.callback_query(F.data == "method_manager")
 async def contact_manager(callback: CallbackQuery, state: FSMContext) -> None:
     """Связь с менеджером."""
-    await callback.answer()
+    await safe_answer_callback(callback)
 
     contacts = MANAGER_CONTACTS.format(
         phone=settings.contact_phone,
@@ -94,5 +95,5 @@ async def contact_manager(callback: CallbackQuery, state: FSMContext) -> None:
 @router.callback_query(CalculationStates.choosing_contact_method, F.data == "method_bot")
 async def start_bot_calculation(callback: CallbackQuery, state: FSMContext) -> None:
     """Начало автоматического расчёта — переход к вопросу о площади."""
-    await callback.answer()
+    await safe_answer_callback(callback)
     await ask_area(callback.message, state, callback.from_user.id)

@@ -65,6 +65,7 @@ from app.core.config import settings
 from app.utils.validation import parse_float, parse_int, validate_range, validate_phone, normalize_phone
 from app.utils.user import get_user_display_name
 from app.utils.images import send_image_if_exists
+from app.utils.callback import safe_answer_callback
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -193,7 +194,7 @@ async def _go_back_to_phone(callback: CallbackQuery, state: FSMContext, user_id:
 @router.callback_query(F.data == "go_back")
 async def go_back(callback: CallbackQuery, state: FSMContext) -> None:
     """Обработчик возврата на предыдущий шаг."""
-    await callback.answer()
+    await safe_answer_callback(callback)
     
     data = await state.get_data()
     current_state = await state.get_state()
@@ -296,7 +297,7 @@ async def _ask_profile(message: Message, state: FSMContext, user_id: int) -> Non
 @router.callback_query(CalculationStates.choosing_profile, F.data.startswith("profile_"))
 async def process_profile(callback: CallbackQuery, state: FSMContext) -> None:
     """Обработка выбора профиля."""
-    await callback.answer()
+    await safe_answer_callback(callback)
 
     profile_type = callback.data.replace("profile_", "")
     profile_name = get_profile_name(profile_type)
@@ -351,7 +352,7 @@ async def _ask_cornice_type(message: Message, state: FSMContext, user_id: int) -
 @router.callback_query(CalculationStates.choosing_cornice_type, F.data.startswith("cornice_"))
 async def process_cornice_type(callback: CallbackQuery, state: FSMContext) -> None:
     """Обработка выбора типа карниза."""
-    await callback.answer()
+    await safe_answer_callback(callback)
 
     cornice_type = callback.data.replace("cornice_", "")
     
@@ -725,7 +726,7 @@ async def _notify_admin(bot: Bot, user: User, calculation: CalculationData, data
 @router.callback_query(F.data == "order_measurement")
 async def start_measurement_order(callback: CallbackQuery, state: FSMContext) -> None:
     """Начало заказа бесплатного замера."""
-    await callback.answer()
+    await safe_answer_callback(callback)
     
     # Сохраняем предыдущее состояние
     await state.update_data(previous_state=CalculationStates.showing_result)
