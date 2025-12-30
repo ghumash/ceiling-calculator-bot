@@ -51,6 +51,10 @@ async def main() -> None:
     dp.include_router(start.router)
     dp.include_router(calculation.router)
 
+    # Удаление webhook перед запуском polling
+    await bot.delete_webhook(drop_pending_updates=True)
+    logger.info("Webhook удалён, запуск polling...")
+
     logger.info("Bot started successfully!")
 
     # Запуск polling с обработкой сетевых ошибок
@@ -60,7 +64,6 @@ async def main() -> None:
         logger.info("Получен сигнал остановки (Ctrl+C)")
     except Exception as e:
         error_msg = str(e)
-        # Сетевые ошибки не критичны - это временные проблемы с подключением
         if "Connection" in error_msg or "Network" in error_msg or "timeout" in error_msg.lower():
             logger.warning(f"Сетевая ошибка при подключении к Telegram API: {e}")
             logger.info("Проверьте интернет-соединение и доступность api.telegram.org")

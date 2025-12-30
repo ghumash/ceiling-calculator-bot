@@ -340,7 +340,7 @@ async def _ask_cornice_type(message: Message, state: FSMContext, user_id: int) -
     fallback_paths = ["carnices_all.jpg", "pk14.jpg", "pk5.jpg", "bp40.jpg"]
     
     await send_image_if_exists(message, cornice_photo_path, fallback_paths)
- 
+
     await message.answer(CORNICE_TYPE_QUESTION, reply_markup=get_cornice_keyboard(), parse_mode=ParseMode.HTML)
     await state.set_state(CalculationStates.choosing_cornice_type)
 
@@ -370,7 +370,7 @@ async def process_cornice_type(callback: CallbackQuery, state: FSMContext) -> No
     # Если выбран тип карниза - сохраняем и переходим к вопросу о длине
     cornice_name = get_cornice_name(cornice_type)
     await state.update_data(cornice_type=cornice_type)
-    
+
     username = get_user_display_name(callback.from_user)
     chat_logger.log_message(
         user_id=callback.from_user.id,

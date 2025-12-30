@@ -50,7 +50,7 @@ async def start_new_calculation(callback: CallbackQuery, state: FSMContext) -> N
 
     user_name = callback.from_user.first_name or "Пользователь"
     welcome_text = WELCOME_MESSAGE.format(name=user_name)
-    
+
     await callback.message.answer(
         text=welcome_text,
         reply_markup=get_contact_method_keyboard(),
