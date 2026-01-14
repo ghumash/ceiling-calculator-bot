@@ -94,18 +94,3 @@ def get_result_keyboard() -> InlineKeyboardMarkup:
             ],
         ]
     )
-
-
-def get_manager_contacts_keyboard() -> InlineKeyboardMarkup:
-    """Клавиатура с контактами менеджера."""
-    from app.core.config import settings
-    
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="✈️ Написать в Telegram", url=f"https://t.me/{settings.contact_telegram.replace('@', '')}"
-                )
-            ],
-        ]
-    )
