@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     # Bot
     bot_token: str = Field(..., description="Telegram Bot Token")
     admin_ids: str = Field(default="", description="Comma-separated admin IDs")
+    group_chat_id: str = Field(default="", description="Group chat ID for notifications")
+    channel_chat_id: str = Field(default="", description="Channel chat ID for notifications")
 
     # Application
     log_level: str = "INFO"
@@ -52,10 +54,25 @@ class Settings(BaseSettings):
 
     @property
     def admin_ids_list(self) -> list[int]:
-        """Возвращает список ID админов."""
+        """Возвращает список ID админов (deprecated, используйте group_chat_id)."""
         if not self.admin_ids:
             return []
         return [int(uid.strip()) for uid in self.admin_ids.split(",") if uid.strip()]
+
+    @property
+    def notification_chat_id(self) -> int | None:
+        """Возвращает chat_id для отправки уведомлений (группа или первый админ).
+        
+        Returns:
+            Chat ID для уведомлений или None
+        """
+        # Приоритет у group_chat_id
+        if self.group_chat_id:
+            return int(self.group_chat_id)
+        # Fallback на первого админа из списка
+        if self.admin_ids_list:
+            return self.admin_ids_list[0]
+        return None
 
 
 settings = Settings()

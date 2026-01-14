@@ -662,25 +662,25 @@ def _format_admin_details(calculation: CalculationData) -> str:
     return details
 
 
-async def _send_admin_notification(bot: Bot, admin_id: int, report: str) -> None:
-    """Отправляет уведомление одному админу.
+async def _send_notification(bot: Bot, chat_id: int, report: str) -> None:
+    """Отправляет уведомление в чат (группу или пользователю).
     
     Args:
         bot: Экземпляр бота
-        admin_id: ID админа
+        chat_id: ID чата (группы или пользователя)
         report: Текст отчёта
     """
     try:
-        await bot.send_message(chat_id=admin_id, text=report, parse_mode=ParseMode.HTML)
+        await bot.send_message(chat_id=chat_id, text=report, parse_mode=ParseMode.HTML)
     except Exception as e:
         error_msg = str(e).lower()
         if "chat not found" not in error_msg and "bot was blocked" not in error_msg:
-            logger.warning(f"Не удалось отправить уведомление админу {admin_id}: {e}")
+            logger.warning(f"Не удалось отправить уведомление в чат {chat_id}: {e}")
 
 
 async def _notify_admin(bot: Bot, user: User, calculation: CalculationData, data: dict) -> None:
-    """Отправляет уведомление админам о завершении расчёта."""
-    if not bot or not settings.admin_ids_list:
+    """Отправляет уведомление о завершении расчёта в канал, группу и/или менеджерам."""
+    if not bot:
         return
 
     try:
@@ -703,11 +703,20 @@ async def _notify_admin(bot: Bot, user: User, calculation: CalculationData, data
             details=details,
         )
 
+        # Отправка в канал (если настроен)
+        if settings.channel_chat_id:
+            await _send_notification(bot, int(settings.channel_chat_id), admin_report)
+
+        # Отправка в группу (если настроена)
+        if settings.group_chat_id:
+            await _send_notification(bot, int(settings.group_chat_id), admin_report)
+
+        # Отправка каждому менеджеру (если настроены)
         for admin_id in settings.admin_ids_list:
-            await _send_admin_notification(bot, admin_id, admin_report)
+            await _send_notification(bot, admin_id, admin_report)
 
     except Exception as e:
-        logger.error(f"Ошибка отправки уведомления админу: {e}")
+        logger.error(f"Ошибка отправки уведомления: {e}")
 
 
 # ============================================
@@ -869,8 +878,8 @@ async def process_address_input(message: Message, state: FSMContext) -> None:
 
 
 async def _notify_manager_about_measurement(bot: Bot, user: User, state: FSMContext) -> None:
-    """Отправляет уведомление менеджерам о заказе замера."""
-    if not bot or not settings.admin_ids_list:
+    """Отправляет уведомление о заказе замера в канал, группу и/или менеджерам."""
+    if not bot:
         return
 
     try:
@@ -896,8 +905,17 @@ async def _notify_manager_about_measurement(bot: Bot, user: User, state: FSMCont
             date=date,
         )
 
+        # Отправка в канал (если настроен)
+        if settings.channel_chat_id:
+            await _send_notification(bot, int(settings.channel_chat_id), measurement_report)
+
+        # Отправка в группу (если настроена)
+        if settings.group_chat_id:
+            await _send_notification(bot, int(settings.group_chat_id), measurement_report)
+
+        # Отправка каждому менеджеру (если настроены)
         for admin_id in settings.admin_ids_list:
-            await _send_admin_notification(bot, admin_id, measurement_report)
+            await _send_notification(bot, admin_id, measurement_report)
 
     except Exception as e:
         logger.error(f"Ошибка отправки уведомления о замере: {e}")
