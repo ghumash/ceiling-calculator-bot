@@ -6,7 +6,7 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 
-from app.bot.keyboards.inline import get_contact_method_keyboard
+from app.bot.keyboards.inline import get_contact_method_keyboard, get_manager_contacts_keyboard
 from app.bot.states import CalculationStates
 from app.templates.messages.texts import WELCOME_MESSAGE, MANAGER_CONTACTS
 from app.services.chat_logger import chat_logger
@@ -77,7 +77,11 @@ async def contact_manager(callback: CallbackQuery, state: FSMContext) -> None:
         telegram=settings.contact_telegram
     )
 
-    await callback.message.answer(text=contacts, parse_mode=ParseMode.HTML)
+    await callback.message.answer(
+        text=contacts,
+        reply_markup=get_manager_contacts_keyboard(),
+        parse_mode=ParseMode.HTML
+    )
     
     # Очищаем состояние только если мы в процессе выбора способа связи
     current_state = await state.get_state()

@@ -1,0 +1,19 @@
+1.seichas u nas nepravilno rabotaet logika
+vopros "Выберите тип карниза:" tolko zarabaticaet togda kogda vibrali variant tenevoi ili paryashiy no nujno sdelat tak chtobi rabotal dlya varianta so vstavkoi toje, sdelai gramotno svoyu rabotu, best practice, pishi chisto ✅
+
+2. sdelat knopku Телефон: +7 (926) 103-43-03 klikabelnim esli eto vozmojno ✅
+
+3. 1.7 -> 1.5
+
+4. добавить вариант Без карниза, Ниша под карниз без перегиба
+менять фото БП40
+
+5. Укажите общую длину всех карнизов в погонных метрах
+Если не нужно — напишите 0
+убрать «Если не нужно — напишите 0»
+
+6. добавить виды светильников - встроенный накладной подвесной с возможностью выбора каждого и каждого количество
+
+7. добавить виды трековых линии - встроенный накладной с возможностью выбора каждого и каждого количество
+
+8. menyat otpravku na user -> group

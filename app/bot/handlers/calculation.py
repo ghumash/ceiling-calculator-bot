@@ -85,9 +85,6 @@ def _get_previous_lighting_state(data: dict) -> CalculationStates:
     Returns:
         Предыдущее состояние
     """
-    profile_type = data.get("profile_type")
-    if profile_type == "insert":
-        return CalculationStates.choosing_profile
     if data.get("cornice_length", 0) == 0:
         return CalculationStates.choosing_cornice_type
     return CalculationStates.entering_cornice_length
@@ -139,10 +136,7 @@ async def _go_back_to_spotlights(callback: CallbackQuery, state: FSMContext, use
     previous_state = _get_previous_lighting_state(data)
     await state.update_data(previous_state=previous_state)
     
-    profile_type = data.get("profile_type")
-    if profile_type == "insert":
-        await _ask_profile(callback.message, state, user_id)
-    elif data.get("cornice_length", 0) == 0:
+    if data.get("cornice_length", 0) == 0:
         await _ask_cornice_type(callback.message, state, user_id)
     else:
         await _ask_cornice_length(callback.message, state, user_id)
@@ -318,12 +312,8 @@ async def process_profile(callback: CallbackQuery, state: FSMContext) -> None:
         user_id=callback.from_user.id, username="БОТ", message=response, is_bot=True
     )
 
-    # Если выбран обычный профиль со вставкой, пропускаем карнизы
-    if profile_type == "insert":
-        await _ask_spotlights(callback.message, state, callback.from_user.id)
-    else:
-        # Переход к выбору типа карниза
-        await _ask_cornice_type(callback.message, state, callback.from_user.id)
+    # Переход к выбору типа карниза для всех типов профилей
+    await _ask_cornice_type(callback.message, state, callback.from_user.id)
 
 
 # ============================================
@@ -581,8 +571,10 @@ def _format_result_info(calculation: CalculationData) -> tuple[str, str, str]:
         area_note = f"• Расчёт от минимальной площади: {calculation.area_for_calculation} м²\n"
 
     profile_info = ""
-    if calculation.profile_type != "insert":
-        profile_name = get_profile_name(calculation.profile_type)
+    profile_name = get_profile_name(calculation.profile_type)
+    if calculation.profile_type == "insert":
+        profile_info = f"• Профиль: {profile_name}\n"
+    else:
         perimeter = calculation.area * settings.perimeter_coefficient
         profile_info = f"• Профиль: {profile_name} — {perimeter:.1f} пог.м\n"
 
