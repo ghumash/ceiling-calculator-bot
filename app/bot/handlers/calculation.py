@@ -945,7 +945,6 @@ async def cancel_edit(callback: CallbackQuery, state: FSMContext) -> None:
     """Отменяет редактирование и возвращает к результату."""
     await safe_answer_callback(callback)
     data = await state.get_data()
-    user = callback.from_user
     
     # Пересчитываем и показываем результат
     calculation = calculate_total(data)
