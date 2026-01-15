@@ -12,6 +12,16 @@ def get_back_keyboard() -> InlineKeyboardMarkup:
     )
 
 
+def get_skip_keyboard() -> InlineKeyboardMarkup:
+    """Клавиатура с кнопками 'Не нужно' и 'Назад'."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="Не нужно", callback_data="skip_zero")],
+            [InlineKeyboardButton(text="⬅️ Назад", callback_data="go_back")],
+        ]
+    )
+
+
 def add_back_button(keyboard: InlineKeyboardMarkup) -> InlineKeyboardMarkup:
     """Добавляет кнопку 'Назад' в клавиатуру.
     
@@ -81,6 +91,33 @@ def get_cornice_keyboard() -> InlineKeyboardMarkup:
     return add_back_button(keyboard)
 
 
+def get_track_type_keyboard() -> InlineKeyboardMarkup:
+    """Клавиатура выбора типа треков."""
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="Накладные", callback_data="track_surface"),
+                InlineKeyboardButton(text="Встроенные", callback_data="track_built_in"),
+            ],
+            [InlineKeyboardButton(text="Без треков", callback_data="track_none")],
+        ]
+    )
+    return add_back_button(keyboard)
+
+
+def get_wall_finish_keyboard() -> InlineKeyboardMarkup:
+    """Клавиатура выбора чистовых работ стен."""
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="Да", callback_data="wall_yes"),
+                InlineKeyboardButton(text="Нет", callback_data="wall_no"),
+            ],
+        ]
+    )
+    return add_back_button(keyboard)
+
+
 def get_result_keyboard() -> InlineKeyboardMarkup:
     """Клавиатура после результата."""
     return InlineKeyboardMarkup(
@@ -110,30 +147,29 @@ def get_result_keyboard() -> InlineKeyboardMarkup:
 
 
 def get_edit_params_keyboard(data: dict) -> InlineKeyboardMarkup:
-    """Клавиатура выбора параметра для редактирования.
-    
-    Args:
-        data: Данные текущего расчёта
-        
-    Returns:
-        Клавиатура с параметрами
-    """
+    """Клавиатура выбора параметра для редактирования."""
     area = data.get("area", "—")
     profile = data.get("profile_type", "—")
     cornice = data.get("cornice_type")
     cornice_length = data.get("cornice_length", 0)
     spotlights = data.get("spotlights", 0)
+    track_type = data.get("track_type")
+    track_length = data.get("track_length", 0)
+    light_lines = data.get("light_lines", 0)
     chandeliers = data.get("chandeliers", 0)
+    wall_finish = data.get("wall_finish")
     
-    # Форматирование значений
     profile_names = {"insert": "Со вставкой", "shadow": "Теневой", "floating": "Парящий"}
     profile_display = profile_names.get(profile, profile)
     
     cornice_names = {"pk5": "ПК-5", "am1": "АМ-1", "pk14": "ПК-14", "bpp": "БП-П", "bp40": "БП-40"}
-    if cornice and cornice_length > 0:
-        cornice_display = f"{cornice_names.get(cornice, cornice)} ({cornice_length}м)"
-    else:
-        cornice_display = "нет"
+    cornice_display = f"{cornice_names.get(cornice, cornice)} ({cornice_length}м)" if cornice and cornice_length > 0 else "нет"
+    
+    track_names = {"surface": "Накладные", "built_in": "Встроенные"}
+    track_display = f"{track_names.get(track_type, '')} ({track_length}м)" if track_type else "нет"
+    
+    light_display = f"{light_lines} м" if light_lines else "нет"
+    wall_display = "Да" if wall_finish else "Нет"
     
     return InlineKeyboardMarkup(
         inline_keyboard=[
@@ -141,7 +177,10 @@ def get_edit_params_keyboard(data: dict) -> InlineKeyboardMarkup:
             [InlineKeyboardButton(text=f"🔲 Профиль: {profile_display}", callback_data="edit_profile")],
             [InlineKeyboardButton(text=f"📏 Карниз: {cornice_display}", callback_data="edit_cornice")],
             [InlineKeyboardButton(text=f"💡 Светильники: {spotlights} шт", callback_data="edit_spotlights")],
+            [InlineKeyboardButton(text=f"🚃 Треки: {track_display}", callback_data="edit_tracks")],
+            [InlineKeyboardButton(text=f"💫 Световые линии: {light_display}", callback_data="edit_light_lines")],
             [InlineKeyboardButton(text=f"🔦 Люстры: {chandeliers} шт", callback_data="edit_chandeliers")],
+            [InlineKeyboardButton(text=f"🧱 Чистовые работы: {wall_display}", callback_data="edit_wall_finish")],
             [InlineKeyboardButton(text="⬅️ Назад к результату", callback_data="back_to_result")],
         ]
     )

@@ -15,8 +15,11 @@ from app.bot.keyboards.inline import (
     get_cornice_keyboard,
     get_result_keyboard,
     get_back_keyboard,
+    get_skip_keyboard,
     get_contact_method_keyboard,
     get_edit_params_keyboard,
+    get_track_type_keyboard,
+    get_wall_finish_keyboard,
 )
 from app.templates.messages.texts import (
     AREA_QUESTION,
@@ -32,9 +35,20 @@ from app.templates.messages.texts import (
     SPOTLIGHTS_QUESTION,
     SPOTLIGHTS_ACCEPTED,
     SPOTLIGHTS_INVALID_INPUT,
+    TRACK_TYPE_QUESTION,
+    TRACK_TYPE_ACCEPTED,
+    NO_TRACKS,
+    TRACK_LENGTH_QUESTION,
+    TRACK_LENGTH_ACCEPTED,
+    TRACK_INVALID_INPUT,
+    LIGHT_LINES_QUESTION,
+    LIGHT_LINES_ACCEPTED,
+    LIGHT_LINES_INVALID_INPUT,
     CHANDELIERS_QUESTION,
     CHANDELIERS_ACCEPTED,
     CHANDELIERS_INVALID_INPUT,
+    WALL_FINISH_QUESTION,
+    WALL_FINISH_ACCEPTED,
     RESULT_MESSAGE,
     ADMIN_REPORT,
     WELCOME_MESSAGE,
@@ -52,6 +66,7 @@ from app.templates.messages.texts import (
     EDIT_PARAMS_MESSAGE,
     get_profile_name,
     get_cornice_name,
+    get_track_type_name,
     get_cornice_validation_error,
     get_count_validation_error,
     format_ceiling_details,
@@ -59,6 +74,8 @@ from app.templates.messages.texts import (
     format_cornice_details,
     format_spotlights_details,
     format_chandeliers_details,
+    format_track_details,
+    format_light_lines_details,
 )
 from app.services.chat_logger import chat_logger
 from app.services.calculator import calculate_total
@@ -144,14 +161,6 @@ async def _go_back_to_spotlights(callback: CallbackQuery, state: FSMContext, use
         await _ask_cornice_length(callback.message, state, user_id)
 
 
-async def _go_back_to_chandeliers(callback: CallbackQuery, state: FSMContext, user_id: int, data: dict) -> None:
-    """Возврат к вводу люстр."""
-    await state.update_data(chandeliers=None)
-    previous_state = _get_previous_lighting_state(data)
-    await state.update_data(previous_state=previous_state)
-    await _ask_spotlights(callback.message, state, user_id)
-
-
 async def _go_back_to_result(callback: CallbackQuery, state: FSMContext, user_id: int) -> None:
     """Возврат к результату расчёта."""
     await state.update_data(customer_name=None, previous_state=CalculationStates.showing_result)
@@ -187,6 +196,37 @@ async def _go_back_to_phone(callback: CallbackQuery, state: FSMContext, user_id:
     await _ask_phone(callback.message, state, user_id)
 
 
+async def _go_back_from_light_lines(callback: CallbackQuery, state: FSMContext, user_id: int, data: dict) -> None:
+    """Возврат из световых линий к трекам или типу треков."""
+    if data.get("track_type"):
+        await _ask_track_length(callback.message, state, user_id)
+    else:
+        await _ask_track_type(callback.message, state, user_id)
+
+
+@router.callback_query(F.data == "skip_zero")
+async def skip_with_zero(callback: CallbackQuery, state: FSMContext) -> None:
+    """Обработчик кнопки 'Не нужно' — устанавливает 0."""
+    await safe_answer_callback(callback)
+    
+    current_state = await state.get_state()
+    user_id = callback.from_user.id
+    
+    if current_state == CalculationStates.entering_spotlights:
+        await _process_spotlights(callback.message, state, 0, user_id)
+    elif current_state == CalculationStates.entering_light_lines:
+        data = await state.get_data()
+        editing_mode = data.get("editing_mode", False)
+        await state.update_data(light_lines=0, editing_mode=False)
+        await callback.message.answer("✅ <b>Световые линии:</b> не требуются", parse_mode=ParseMode.HTML)
+        if editing_mode and data.get("wall_finish") is not None:
+            await _show_result_after_edit(callback.message, state, callback.from_user)
+        else:
+            await _ask_chandeliers(callback.message, state, user_id)
+    elif current_state == CalculationStates.entering_chandeliers:
+        await _process_chandeliers(callback.message, state, 0, callback.from_user)
+
+
 @router.callback_query(F.data == "go_back")
 async def go_back(callback: CallbackQuery, state: FSMContext) -> None:
     """Обработчик возврата на предыдущий шаг."""
@@ -202,7 +242,11 @@ async def go_back(callback: CallbackQuery, state: FSMContext) -> None:
         CalculationStates.choosing_cornice_type: _go_back_to_profile,
         CalculationStates.entering_cornice_length: _go_back_to_cornice_type,
         CalculationStates.entering_spotlights: lambda cb, st, uid: _go_back_to_spotlights(cb, st, uid, data),
-        CalculationStates.entering_chandeliers: lambda cb, st, uid: _go_back_to_chandeliers(cb, st, uid, data),
+        CalculationStates.choosing_track_type: lambda cb, st, uid: _ask_spotlights(cb.message, st, uid),
+        CalculationStates.entering_track_length: lambda cb, st, uid: _ask_track_type(cb.message, st, uid),
+        CalculationStates.entering_light_lines: lambda cb, st, uid: _go_back_from_light_lines(cb, st, uid, data),
+        CalculationStates.entering_chandeliers: lambda cb, st, uid: _ask_light_lines(cb.message, st, uid),
+        CalculationStates.choosing_wall_finish: lambda cb, st, uid: _ask_chandeliers(cb.message, st, uid),
         CalculationStates.entering_phone: lambda cb, st, uid: _go_back_to_result(cb, st, uid),
         CalculationStates.entering_address: lambda cb, st, uid: _go_back_to_phone(cb, st, uid),
     }
@@ -461,7 +505,7 @@ async def _ask_spotlights(message: Message, state: FSMContext, user_id: int) -> 
     previous_state = _get_previous_lighting_state(data)
     await state.update_data(previous_state=previous_state)
     
-    await message.answer(SPOTLIGHTS_QUESTION, reply_markup=get_back_keyboard(), parse_mode=ParseMode.HTML)
+    await message.answer(SPOTLIGHTS_QUESTION, reply_markup=get_skip_keyboard(), parse_mode=ParseMode.HTML)
     await state.set_state(CalculationStates.entering_spotlights)
 
     chat_logger.log_message(
@@ -502,7 +546,7 @@ async def process_spotlights_input(message: Message, state: FSMContext) -> None:
 async def _process_spotlights(
     message: Message, state: FSMContext, count: int, user_id: int
 ) -> None:
-    """Сохраняет количество светильников и переходит к люстрам или результату."""
+    """Сохраняет количество светильников и переходит к трекам или результату."""
     data = await state.get_data()
     editing_mode = data.get("editing_mode", False)
     
@@ -512,10 +556,148 @@ async def _process_spotlights(
     await message.answer(response, parse_mode=ParseMode.HTML)
     chat_logger.log_message(user_id=user_id, username="БОТ", message=response, is_bot=True)
 
-    if editing_mode and data.get("chandeliers") is not None:
+    if editing_mode and data.get("wall_finish") is not None:
         await _show_result_after_edit(message, state, message.from_user)
     else:
-        await _ask_chandeliers(message, state, user_id)
+        await _ask_track_type(message, state, user_id)
+
+
+# ============================================
+# ТРЕКИ
+# ============================================
+
+
+async def _ask_track_type(message: Message, state: FSMContext, user_id: int) -> None:
+    """Запрашивает тип трековых линий."""
+    await state.update_data(previous_state=CalculationStates.entering_spotlights)
+    
+    lighting_path = Path(settings.lighting_dir)
+    await send_image_if_exists(message, lighting_path / "tracks_all.jpg", [])
+    
+    await message.answer(TRACK_TYPE_QUESTION, reply_markup=get_track_type_keyboard(), parse_mode=ParseMode.HTML)
+    await state.set_state(CalculationStates.choosing_track_type)
+    chat_logger.log_message(user_id=user_id, username="БОТ", message=TRACK_TYPE_QUESTION, is_bot=True)
+
+
+@router.callback_query(CalculationStates.choosing_track_type, F.data.startswith("track_"))
+async def process_track_type(callback: CallbackQuery, state: FSMContext) -> None:
+    """Обработка выбора типа треков."""
+    await safe_answer_callback(callback)
+    
+    data = await state.get_data()
+    editing_mode = data.get("editing_mode", False)
+    track_type = callback.data.replace("track_", "")
+    
+    if track_type == "none":
+        await state.update_data(track_type=None, track_length=0, editing_mode=False)
+        await callback.message.answer(NO_TRACKS, parse_mode=ParseMode.HTML)
+        chat_logger.log_message(user_id=callback.from_user.id, username="БОТ", message=NO_TRACKS, is_bot=True)
+        
+        if editing_mode and data.get("wall_finish") is not None:
+            await _show_result_after_edit(callback.message, state, callback.from_user)
+        else:
+            await _ask_light_lines(callback.message, state, callback.from_user.id)
+        return
+    
+    track_name = get_track_type_name(track_type)
+    await state.update_data(track_type=track_type)
+    
+    username = get_user_display_name(callback.from_user)
+    chat_logger.log_message(user_id=callback.from_user.id, username=username, message=f"Тип треков: {track_name}", is_bot=False)
+    
+    response = TRACK_TYPE_ACCEPTED.format(track_type=track_name)
+    await callback.message.answer(response, parse_mode=ParseMode.HTML)
+    chat_logger.log_message(user_id=callback.from_user.id, username="БОТ", message=response, is_bot=True)
+    
+    await _ask_track_length(callback.message, state, callback.from_user.id)
+
+
+async def _ask_track_length(message: Message, state: FSMContext, user_id: int) -> None:
+    """Запрашивает длину треков."""
+    await state.update_data(previous_state=CalculationStates.choosing_track_type)
+    await message.answer(TRACK_LENGTH_QUESTION, reply_markup=get_back_keyboard(), parse_mode=ParseMode.HTML)
+    await state.set_state(CalculationStates.entering_track_length)
+    chat_logger.log_message(user_id=user_id, username="БОТ", message=TRACK_LENGTH_QUESTION, is_bot=True)
+
+
+@router.message(CalculationStates.entering_track_length)
+async def process_track_length(message: Message, state: FSMContext) -> None:
+    """Обработка ввода длины треков."""
+    if not message.text:
+        await message.answer(TRACK_INVALID_INPUT, parse_mode=ParseMode.HTML)
+        return
+
+    length = parse_float(message.text)
+    if length is None or length <= 0:
+        await message.answer(TRACK_INVALID_INPUT, parse_mode=ParseMode.HTML)
+        return
+
+    data = await state.get_data()
+    editing_mode = data.get("editing_mode", False)
+    
+    await state.update_data(track_length=length, editing_mode=False)
+    
+    username = get_user_display_name(message.from_user)
+    chat_logger.log_message(user_id=message.from_user.id, username=username, message=f"Длина треков: {length} м", is_bot=False)
+
+    response = TRACK_LENGTH_ACCEPTED.format(length=length)
+    await message.answer(response, parse_mode=ParseMode.HTML)
+    chat_logger.log_message(user_id=message.from_user.id, username="БОТ", message=response, is_bot=True)
+
+    if editing_mode and data.get("wall_finish") is not None:
+        await _show_result_after_edit(message, state, message.from_user)
+    else:
+        await _ask_light_lines(message, state, message.from_user.id)
+
+
+# ============================================
+# СВЕТОВЫЕ ЛИНИИ
+# ============================================
+
+
+async def _ask_light_lines(message: Message, state: FSMContext, user_id: int) -> None:
+    """Запрашивает длину световых линий."""
+    data = await state.get_data()
+    track_type = data.get("track_type")
+    previous = CalculationStates.entering_track_length if track_type else CalculationStates.choosing_track_type
+    await state.update_data(previous_state=previous)
+    
+    lighting_path = Path(settings.lighting_dir)
+    await send_image_if_exists(message, lighting_path / "light_lines.jpg", [])
+    
+    await message.answer(LIGHT_LINES_QUESTION, reply_markup=get_skip_keyboard(), parse_mode=ParseMode.HTML)
+    await state.set_state(CalculationStates.entering_light_lines)
+    chat_logger.log_message(user_id=user_id, username="БОТ", message=LIGHT_LINES_QUESTION, is_bot=True)
+
+
+@router.message(CalculationStates.entering_light_lines)
+async def process_light_lines(message: Message, state: FSMContext) -> None:
+    """Обработка ввода длины световых линий."""
+    if not message.text:
+        await message.answer(LIGHT_LINES_INVALID_INPUT, parse_mode=ParseMode.HTML)
+        return
+
+    length = parse_float(message.text)
+    if length is None or length < 0:
+        await message.answer(LIGHT_LINES_INVALID_INPUT, parse_mode=ParseMode.HTML)
+        return
+
+    data = await state.get_data()
+    editing_mode = data.get("editing_mode", False)
+    
+    await state.update_data(light_lines=length, editing_mode=False)
+    
+    username = get_user_display_name(message.from_user)
+    chat_logger.log_message(user_id=message.from_user.id, username=username, message=f"Световые линии: {length} м", is_bot=False)
+
+    response = LIGHT_LINES_ACCEPTED.format(length=length)
+    await message.answer(response, parse_mode=ParseMode.HTML)
+    chat_logger.log_message(user_id=message.from_user.id, username="БОТ", message=response, is_bot=True)
+
+    if editing_mode and data.get("wall_finish") is not None:
+        await _show_result_after_edit(message, state, message.from_user)
+    else:
+        await _ask_chandeliers(message, state, message.from_user.id)
 
 
 # ============================================
@@ -525,14 +707,10 @@ async def _process_spotlights(
 
 async def _ask_chandeliers(message: Message, state: FSMContext, user_id: int) -> None:
     """Запрашивает количество люстр."""
-    # Сохраняем предыдущее состояние
-    await state.update_data(previous_state=CalculationStates.entering_spotlights)
-    await message.answer(CHANDELIERS_QUESTION, reply_markup=get_back_keyboard(), parse_mode=ParseMode.HTML)
+    await state.update_data(previous_state=CalculationStates.entering_light_lines)
+    await message.answer(CHANDELIERS_QUESTION, reply_markup=get_skip_keyboard(), parse_mode=ParseMode.HTML)
     await state.set_state(CalculationStates.entering_chandeliers)
-
-    chat_logger.log_message(
-        user_id=user_id, username="БОТ", message=CHANDELIERS_QUESTION, is_bot=True
-    )
+    chat_logger.log_message(user_id=user_id, username="БОТ", message=CHANDELIERS_QUESTION, is_bot=True)
 
 
 @router.message(CalculationStates.entering_chandeliers)
@@ -568,7 +746,7 @@ async def process_chandeliers_input(message: Message, state: FSMContext) -> None
 async def _process_chandeliers(
     message: Message, state: FSMContext, count: int, user: User
 ) -> None:
-    """Сохраняет количество люстр и показывает результат."""
+    """Сохраняет количество люстр и переходит к вопросу о чистовых работах."""
     data = await state.get_data()
     editing_mode = data.get("editing_mode", False)
     
@@ -578,10 +756,49 @@ async def _process_chandeliers(
     await message.answer(response, parse_mode=ParseMode.HTML)
     chat_logger.log_message(user_id=user.id, username="БОТ", message=response, is_bot=True)
 
-    if editing_mode:
+    if editing_mode and data.get("wall_finish") is not None:
         await _show_result_after_edit(message, state, user)
     else:
-        await _show_result(message, state, user)
+        await _ask_wall_finish(message, state, user.id)
+
+
+# ============================================
+# ЧИСТОВЫЕ РАБОТЫ СТЕН
+# ============================================
+
+
+async def _ask_wall_finish(message: Message, state: FSMContext, user_id: int) -> None:
+    """Запрашивает информацию о чистовых работах стен."""
+    await state.update_data(previous_state=CalculationStates.entering_chandeliers)
+    await message.answer(WALL_FINISH_QUESTION, reply_markup=get_wall_finish_keyboard(), parse_mode=ParseMode.HTML)
+    await state.set_state(CalculationStates.choosing_wall_finish)
+    chat_logger.log_message(user_id=user_id, username="БОТ", message=WALL_FINISH_QUESTION, is_bot=True)
+
+
+@router.callback_query(CalculationStates.choosing_wall_finish, F.data.startswith("wall_"))
+async def process_wall_finish(callback: CallbackQuery, state: FSMContext) -> None:
+    """Обработка выбора чистовых работ стен."""
+    await safe_answer_callback(callback)
+    
+    data = await state.get_data()
+    editing_mode = data.get("editing_mode", False)
+    
+    wall_finish = callback.data == "wall_yes"
+    answer_text = "Да" if wall_finish else "Нет"
+    
+    await state.update_data(wall_finish=wall_finish, editing_mode=False)
+    
+    username = get_user_display_name(callback.from_user)
+    chat_logger.log_message(user_id=callback.from_user.id, username=username, message=f"Чистовые работы стен: {answer_text}", is_bot=False)
+    
+    response = WALL_FINISH_ACCEPTED.format(answer=answer_text)
+    await callback.message.answer(response, parse_mode=ParseMode.HTML)
+    chat_logger.log_message(user_id=callback.from_user.id, username="БОТ", message=response, is_bot=True)
+    
+    if editing_mode:
+        await _show_result_after_edit(callback.message, state, callback.from_user)
+    else:
+        await _show_result(callback.message, state, callback.from_user)
 
 
 # ============================================
@@ -590,19 +807,11 @@ async def _process_chandeliers(
 
 
 def _format_result_info(calculation: CalculationData) -> tuple[str, str, str]:
-    """Формирует информацию о расчёте для отображения.
-    
-    Args:
-        calculation: Данные расчёта
-        
-    Returns:
-        (area_note, profile_info, lighting_info)
-    """
+    """Формирует информацию о расчёте для отображения."""
     area_note = ""
     if calculation.area < settings.min_area_for_calculation:
         area_note = f"• Расчёт от минимальной площади: {calculation.area_for_calculation} м²\n"
 
-    profile_info = ""
     profile_name = get_profile_name(calculation.profile_type)
     if calculation.profile_type == "insert":
         profile_info = f"• Профиль: {profile_name}\n"
@@ -613,6 +822,11 @@ def _format_result_info(calculation: CalculationData) -> tuple[str, str, str]:
     lighting_info = ""
     if calculation.spotlights > 0:
         lighting_info += f"• Точечные светильники: {calculation.spotlights} шт\n"
+    if calculation.track_type and calculation.track_length > 0:
+        track_name = get_track_type_name(calculation.track_type)
+        lighting_info += f"• Треки ({track_name}): {calculation.track_length} м\n"
+    if calculation.light_lines > 0:
+        lighting_info += f"• Световые линии: {calculation.light_lines} м\n"
     if calculation.chandeliers > 0:
         lighting_info += f"• Люстры: {calculation.chandeliers} шт\n"
 
@@ -684,6 +898,18 @@ def _format_admin_details(calculation: CalculationData) -> str:
             settings.spotlight_price,
         )
 
+    if calculation.track_cost > 0:
+        track_name = get_track_type_name(calculation.track_type)
+        track_price = settings.track_surface_price if calculation.track_type == "surface" else settings.track_built_in_price
+        details += format_track_details(
+            track_name, calculation.track_length, calculation.track_cost, track_price
+        )
+
+    if calculation.light_lines_cost > 0:
+        details += format_light_lines_details(
+            calculation.light_lines, calculation.light_lines_cost, settings.light_lines_price
+        )
+
     if calculation.chandeliers_cost > 0:
         details += format_chandeliers_details(
             calculation.chandeliers,
@@ -725,6 +951,8 @@ async def _notify_admin(
         area_note, profile_info, lighting_info = _format_result_info(calculation)
         details = _format_admin_details(calculation)
 
+        wall_status = "✅ Да (можно на замер)" if calculation.wall_finish else "❌ Нет"
+        
         admin_report = ADMIN_REPORT.format(
             title=title,
             username=username,
@@ -736,6 +964,7 @@ async def _notify_admin(
             lighting_info=lighting_info,
             total=calculation.total_cost,
             details=details,
+            wall_finish_status=wall_status,
         )
 
         # Отправка в канал (если настроен)
@@ -861,6 +1090,30 @@ async def edit_chandeliers(callback: CallbackQuery, state: FSMContext) -> None:
     await safe_answer_callback(callback)
     await state.update_data(editing_mode=True)
     await _ask_chandeliers(callback.message, state, callback.from_user.id)
+
+
+@router.callback_query(F.data == "edit_tracks")
+async def edit_tracks(callback: CallbackQuery, state: FSMContext) -> None:
+    """Редактирование треков."""
+    await safe_answer_callback(callback)
+    await state.update_data(editing_mode=True)
+    await _ask_track_type(callback.message, state, callback.from_user.id)
+
+
+@router.callback_query(F.data == "edit_light_lines")
+async def edit_light_lines(callback: CallbackQuery, state: FSMContext) -> None:
+    """Редактирование световых линий."""
+    await safe_answer_callback(callback)
+    await state.update_data(editing_mode=True)
+    await _ask_light_lines(callback.message, state, callback.from_user.id)
+
+
+@router.callback_query(F.data == "edit_wall_finish")
+async def edit_wall_finish(callback: CallbackQuery, state: FSMContext) -> None:
+    """Редактирование чистовых работ стен."""
+    await safe_answer_callback(callback)
+    await state.update_data(editing_mode=True)
+    await _ask_wall_finish(callback.message, state, callback.from_user.id)
 
 
 # ============================================

@@ -21,7 +21,11 @@ class CalculationStates(StatesGroup):
 
     # Освещение
     entering_spotlights = State()
+    choosing_track_type = State()
+    entering_track_length = State()
+    entering_light_lines = State()
     entering_chandeliers = State()
+    choosing_wall_finish = State()
 
     # Результат
     showing_result = State()

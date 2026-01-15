@@ -68,50 +68,55 @@ def calculate_cornice_cost(length: float, cornice_type: str | None) -> float:
 
 
 def calculate_lighting_cost(spotlights: int, chandeliers: int) -> tuple[float, float]:
-    """Рассчитывает стоимость освещения.
+    """Рассчитывает стоимость освещения."""
+    return spotlights * settings.spotlight_price, chandeliers * settings.chandelier_price
 
-    Args:
-        spotlights: Количество точечных светильников
-        chandeliers: Количество люстр
 
-    Returns:
-        (spotlights_cost, chandeliers_cost)
-    """
-    spotlights_cost = spotlights * settings.spotlight_price
-    chandeliers_cost = chandeliers * settings.chandelier_price
+def calculate_track_cost(length: float, track_type: str | None) -> float:
+    """Рассчитывает стоимость треков."""
+    if length == 0 or not track_type:
+        return 0.0
+    track_prices = {
+        "surface": settings.track_surface_price,
+        "built_in": settings.track_built_in_price,
+    }
+    return length * track_prices.get(track_type, 0)
 
-    return spotlights_cost, chandeliers_cost
+
+def calculate_light_lines_cost(length: float) -> float:
+    """Рассчитывает стоимость световых линий."""
+    return length * settings.light_lines_price if length > 0 else 0.0
 
 
 def calculate_total(data: dict) -> CalculationData:
-    """Выполняет полный расчёт стоимости.
-
-    Args:
-        data: Словарь с данными от пользователя
-
-    Returns:
-        CalculationData с полными расчётами
-    """
-    # Площадь и потолок
+    """Выполняет полный расчёт стоимости."""
     area = data["area"]
     area_for_calculation, ceiling_cost = calculate_area_cost(area)
 
-    # Профиль
     profile_type = data["profile_type"]
     profile_cost = calculate_profile_cost(area, profile_type)
 
-    # Карнизы
     cornice_length = data.get("cornice_length", 0)
     cornice_type = data.get("cornice_type")
     cornice_cost = calculate_cornice_cost(cornice_length, cornice_type)
 
-    # Освещение
     spotlights = data.get("spotlights", 0)
     chandeliers = data.get("chandeliers", 0)
     spotlights_cost, chandeliers_cost = calculate_lighting_cost(spotlights, chandeliers)
 
-    # Итого
-    total_cost = ceiling_cost + profile_cost + cornice_cost + spotlights_cost + chandeliers_cost
+    track_type = data.get("track_type")
+    track_length = data.get("track_length", 0)
+    track_cost = calculate_track_cost(track_length, track_type)
+
+    light_lines = data.get("light_lines", 0)
+    light_lines_cost = calculate_light_lines_cost(light_lines)
+
+    wall_finish = data.get("wall_finish", False)
+
+    total_cost = (
+        ceiling_cost + profile_cost + cornice_cost +
+        spotlights_cost + track_cost + light_lines_cost + chandeliers_cost
+    )
 
     return CalculationData(
         area=area,
@@ -123,8 +128,14 @@ def calculate_total(data: dict) -> CalculationData:
         cornice_cost=cornice_cost,
         spotlights=spotlights,
         spotlights_cost=spotlights_cost,
+        track_type=track_type,
+        track_length=track_length,
+        track_cost=track_cost,
+        light_lines=light_lines,
+        light_lines_cost=light_lines_cost,
         chandeliers=chandeliers,
         chandeliers_cost=chandeliers_cost,
+        wall_finish=wall_finish,
         ceiling_cost=ceiling_cost,
         total_cost=total_cost,
     )

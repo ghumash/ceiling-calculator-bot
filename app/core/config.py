@@ -46,6 +46,13 @@ class Settings(BaseSettings):
     spotlight_price: int = 513
     chandelier_price: int = 550
 
+    # Цены - Треки (за погонный метр)
+    track_surface_price: int = 1999  # Накладные
+    track_built_in_price: int = 3690  # Встроенные
+
+    # Цены - Световые линии (за погонный метр)
+    light_lines_price: int = 2819
+
     # Валидация
     max_cornice_length: float = 100.0
     max_count: int = 100
@@ -53,6 +60,7 @@ class Settings(BaseSettings):
     # Пути к изображениям
     profiles_dir: str = "static/images/profiles"
     cornices_dir: str = "static/images/cornices"
+    lighting_dir: str = "static/images/lighting"
 
     @property
     def admin_ids_list(self) -> list[int]:
