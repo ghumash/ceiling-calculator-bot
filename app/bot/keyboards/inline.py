@@ -13,10 +13,10 @@ def get_back_keyboard() -> InlineKeyboardMarkup:
 
 
 def get_skip_keyboard() -> InlineKeyboardMarkup:
-    """Клавиатура с кнопками 'Не нужно' и 'Назад'."""
+    """Клавиатура с кнопками 'Пропустить' и 'Назад'."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="Не нужно", callback_data="skip_zero")],
+            [InlineKeyboardButton(text="Пропустить", callback_data="skip_zero")],
             [InlineKeyboardButton(text="⬅️ Назад", callback_data="go_back")],
         ]
     )
