@@ -87,11 +87,6 @@ def get_result_keyboard() -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="✏️ Изменить параметры", callback_data="edit_params"
-                )
-            ],
-            [
-                InlineKeyboardButton(
                     text="🔄 Начать новый расчёт", callback_data="start_calculation"
                 )
             ],
@@ -105,45 +100,5 @@ def get_result_keyboard() -> InlineKeyboardMarkup:
                     text="📐 Бесплатный выезд замерщика", callback_data="order_measurement"
                 )
             ],
-        ]
-    )
-
-
-def get_edit_menu_keyboard(data: dict) -> InlineKeyboardMarkup:
-    """Клавиатура меню редактирования параметров.
-    
-    Args:
-        data: Текущие данные расчёта
-        
-    Returns:
-        Клавиатура с текущими значениями
-    """
-    area = data.get("area", "—")
-    profile = data.get("profile_type", "—")
-    cornice_length = data.get("cornice_length", 0)
-    cornice_type = data.get("cornice_type")
-    spotlights = data.get("spotlights", 0)
-    chandeliers = data.get("chandeliers", 0)
-
-    profile_display = {
-        "insert": "Вставка",
-        "shadow": "Теневой",
-        "floating": "Парящий",
-    }.get(profile, profile)
-    
-    cornice_display = "нет"
-    if cornice_length > 0 and cornice_type:
-        cornice_names = {"pk5": "ПК-5", "am1": "АМ-1", "pk14": "ПК-14", "bpp": "БП-П", "bp40": "БП-40"}
-        cornice_display = f"{cornice_names.get(cornice_type, cornice_type)} ({cornice_length}м)"
-    
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text=f"📐 Площадь: {area} м²", callback_data="edit_area")],
-            [InlineKeyboardButton(text=f"🔧 Профиль: {profile_display}", callback_data="edit_profile")],
-            [InlineKeyboardButton(text=f"📏 Карниз: {cornice_display}", callback_data="edit_cornice")],
-            [InlineKeyboardButton(text=f"💡 Светильники: {spotlights} шт", callback_data="edit_spotlights")],
-            [InlineKeyboardButton(text=f"✨ Люстры: {chandeliers} шт", callback_data="edit_chandeliers")],
-            [InlineKeyboardButton(text="✅ Готово — пересчитать", callback_data="recalculate")],
-            [InlineKeyboardButton(text="⬅️ Отмена", callback_data="cancel_edit")],
         ]
     )
