@@ -70,7 +70,6 @@ async def main() -> None:
     commands = [
         BotCommand(command="start", description="Начать новый расчёт"),
         BotCommand(command="edit", description="Изменить параметры расчёта"),
-        BotCommand(command="help", description="Справка по командам"),
     ]
     await bot.set_my_commands(commands)
     logger.info("Команды бота установлены")

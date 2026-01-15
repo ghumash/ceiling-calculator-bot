@@ -12,7 +12,6 @@ from app.templates.messages.texts import (
     WELCOME_MESSAGE,
     MANAGER_CONTACTS,
     EDIT_PARAMS_MESSAGE,
-    HELP_MESSAGE,
     NO_CALCULATION_MESSAGE,
 )
 from app.services.chat_logger import chat_logger
@@ -130,18 +129,4 @@ async def cmd_edit(message: Message, state: FSMContext) -> None:
     )
     chat_logger.log_message(
         user_id=message.from_user.id, username="БОТ", message=EDIT_PARAMS_MESSAGE, is_bot=True
-    )
-
-
-@router.message(Command("help"))
-async def cmd_help(message: Message) -> None:
-    """Обработчик команды /help."""
-    username = get_user_display_name(message.from_user)
-    chat_logger.log_message(
-        user_id=message.from_user.id, username=username, message="/help", is_bot=False
-    )
-    
-    await message.answer(HELP_MESSAGE, parse_mode=ParseMode.HTML)
-    chat_logger.log_message(
-        user_id=message.from_user.id, username="БОТ", message=HELP_MESSAGE, is_bot=True
     )

@@ -18,6 +18,4 @@ vopros "Выберите тип карниза:" tolko zarabaticaet togda kogda 
 
 8. menyat otpravku na user -> group ✅
 
-9. knopka nazad peredelat
-
-10. udalit pole ID s raschetov otpravki v chatax ✅
+9. udalit pole ID s raschetov otpravki v chatax ✅
