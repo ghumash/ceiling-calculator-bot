@@ -16,6 +16,7 @@ from app.bot.keyboards.inline import (
     get_result_keyboard,
     get_back_keyboard,
     get_contact_method_keyboard,
+    get_edit_params_keyboard,
 )
 from app.templates.messages.texts import (
     AREA_QUESTION,
@@ -48,6 +49,7 @@ from app.templates.messages.texts import (
     ADDRESS_INVALID_INPUT,
     MEASUREMENT_THANK_YOU,
     MEASUREMENT_REPORT,
+    EDIT_PARAMS_MESSAGE,
     get_profile_name,
     get_cornice_name,
     get_cornice_validation_error,
@@ -256,15 +258,20 @@ async def process_area_input(message: Message, state: FSMContext) -> None:
 
 
 async def _process_area(message: Message, state: FSMContext, area: float, user_id: int) -> None:
-    """Сохраняет площадь и переходит к выбору профиля."""
-    await state.update_data(area=area)
+    """Сохраняет площадь и переходит к выбору профиля или результату."""
+    data = await state.get_data()
+    editing_mode = data.get("editing_mode", False)
+    
+    await state.update_data(area=area, editing_mode=False)
 
     response = AREA_ACCEPTED.format(area=area)
     await message.answer(response, parse_mode=ParseMode.HTML)
     chat_logger.log_message(user_id=user_id, username="БОТ", message=response, is_bot=True)
 
-    # Переход к выбору профиля
-    await _ask_profile(message, state, user_id)
+    if editing_mode and data.get("profile_type"):
+        await _show_result_after_edit(message, state, user_id)
+    else:
+        await _ask_profile(message, state, user_id)
 
 
 # ============================================
@@ -293,10 +300,13 @@ async def process_profile(callback: CallbackQuery, state: FSMContext) -> None:
     """Обработка выбора профиля."""
     await safe_answer_callback(callback)
 
+    data = await state.get_data()
+    editing_mode = data.get("editing_mode", False)
+    
     profile_type = callback.data.replace("profile_", "")
     profile_name = get_profile_name(profile_type)
 
-    await state.update_data(profile_type=profile_type)
+    await state.update_data(profile_type=profile_type, editing_mode=False)
 
     username = get_user_display_name(callback.from_user)
     chat_logger.log_message(
@@ -312,8 +322,10 @@ async def process_profile(callback: CallbackQuery, state: FSMContext) -> None:
         user_id=callback.from_user.id, username="БОТ", message=response, is_bot=True
     )
 
-    # Переход к выбору типа карниза для всех типов профилей
-    await _ask_cornice_type(callback.message, state, callback.from_user.id)
+    if editing_mode and data.get("spotlights") is not None:
+        await _show_result_after_edit(callback.message, state, callback.from_user.id)
+    else:
+        await _ask_cornice_type(callback.message, state, callback.from_user.id)
 
 
 # ============================================
@@ -344,17 +356,23 @@ async def process_cornice_type(callback: CallbackQuery, state: FSMContext) -> No
     """Обработка выбора типа карниза."""
     await safe_answer_callback(callback)
 
+    data = await state.get_data()
+    editing_mode = data.get("editing_mode", False)
+    
     cornice_type = callback.data.replace("cornice_", "")
     
     # Если выбрано "Без карнизов"
     if cornice_type == "none":
-        await state.update_data(cornice_type=None, cornice_length=0)
+        await state.update_data(cornice_type=None, cornice_length=0, editing_mode=False)
         await callback.message.answer(NO_CORNICE, parse_mode=ParseMode.HTML)
         chat_logger.log_message(
             user_id=callback.from_user.id, username="БОТ", message=NO_CORNICE, is_bot=True
         )
-        # Переход к освещению
-        await _ask_spotlights(callback.message, state, callback.from_user.id)
+        
+        if editing_mode and data.get("spotlights") is not None:
+            await _show_result_after_edit(callback.message, state, callback.from_user.id)
+        else:
+            await _ask_spotlights(callback.message, state, callback.from_user.id)
         return
     
     # Если выбран тип карниза - сохраняем и переходим к вопросу о длине
@@ -404,9 +422,11 @@ async def process_cornice_length(message: Message, state: FSMContext) -> None:
         )
         return
 
-    await state.update_data(cornice_length=length)
-
     data = await state.get_data()
+    editing_mode = data.get("editing_mode", False)
+    
+    await state.update_data(cornice_length=length, editing_mode=False)
+
     cornice_type = data.get("cornice_type")
     cornice_name = get_cornice_name(cornice_type)
     
@@ -424,8 +444,10 @@ async def process_cornice_length(message: Message, state: FSMContext) -> None:
         user_id=message.from_user.id, username="БОТ", message=response, is_bot=True
     )
 
-    # Переход к освещению
-    await _ask_spotlights(message, state, message.from_user.id)
+    if editing_mode and data.get("spotlights") is not None:
+        await _show_result_after_edit(message, state, message.from_user.id)
+    else:
+        await _ask_spotlights(message, state, message.from_user.id)
 
 
 # ============================================
@@ -480,15 +502,20 @@ async def process_spotlights_input(message: Message, state: FSMContext) -> None:
 async def _process_spotlights(
     message: Message, state: FSMContext, count: int, user_id: int
 ) -> None:
-    """Сохраняет количество светильников и переходит к люстрам."""
-    await state.update_data(spotlights=count)
+    """Сохраняет количество светильников и переходит к люстрам или результату."""
+    data = await state.get_data()
+    editing_mode = data.get("editing_mode", False)
+    
+    await state.update_data(spotlights=count, editing_mode=False)
 
     response = SPOTLIGHTS_ACCEPTED.format(count=count)
     await message.answer(response, parse_mode=ParseMode.HTML)
     chat_logger.log_message(user_id=user_id, username="БОТ", message=response, is_bot=True)
 
-    # Переход к люстрам
-    await _ask_chandeliers(message, state, user_id)
+    if editing_mode and data.get("chandeliers") is not None:
+        await _show_result_after_edit(message, state, user_id)
+    else:
+        await _ask_chandeliers(message, state, user_id)
 
 
 # ============================================
@@ -542,14 +569,19 @@ async def _process_chandeliers(
     message: Message, state: FSMContext, count: int, user: User
 ) -> None:
     """Сохраняет количество люстр и показывает результат."""
-    await state.update_data(chandeliers=count)
+    data = await state.get_data()
+    editing_mode = data.get("editing_mode", False)
+    
+    await state.update_data(chandeliers=count, editing_mode=False)
 
     response = CHANDELIERS_ACCEPTED.format(count=count)
     await message.answer(response, parse_mode=ParseMode.HTML)
     chat_logger.log_message(user_id=user.id, username="БОТ", message=response, is_bot=True)
 
-    # Переход к результату
-    await _show_result(message, state, user)
+    if editing_mode:
+        await _show_result_after_edit(message, state, user.id)
+    else:
+        await _show_result(message, state, user)
 
 
 # ============================================
@@ -716,6 +748,112 @@ async def _notify_admin(bot: Bot, user: User, calculation: CalculationData, data
 
     except Exception as e:
         logger.error(f"Ошибка отправки уведомления: {e}")
+
+
+# ============================================
+# РЕДАКТИРОВАНИЕ ПАРАМЕТРОВ
+# ============================================
+
+
+async def _show_result_after_edit(message: Message, state: FSMContext, user_id: int) -> None:
+    """Показывает результат расчёта после редактирования параметра."""
+    data = await state.get_data()
+    calculation = calculate_total(data)
+    area_note, profile_info, lighting_info = _format_result_info(calculation)
+    
+    result_text = RESULT_MESSAGE.format(
+        area=calculation.area,
+        area_note=area_note,
+        cornice_info=profile_info,
+        lighting_info=lighting_info,
+        total=calculation.total_cost,
+    )
+    
+    await message.answer(result_text, reply_markup=get_result_keyboard(), parse_mode=ParseMode.HTML)
+    await state.set_state(CalculationStates.showing_result)
+    
+    chat_logger.log_message(user_id=user_id, username="БОТ", message="📊 Обновлённый результат", is_bot=True)
+
+
+@router.callback_query(F.data == "edit_params")
+async def show_edit_menu(callback: CallbackQuery, state: FSMContext) -> None:
+    """Показ меню редактирования параметров."""
+    await safe_answer_callback(callback)
+    
+    data = await state.get_data()
+    await callback.message.answer(
+        EDIT_PARAMS_MESSAGE,
+        reply_markup=get_edit_params_keyboard(data),
+        parse_mode=ParseMode.HTML
+    )
+    chat_logger.log_message(
+        user_id=callback.from_user.id, username="БОТ", message=EDIT_PARAMS_MESSAGE, is_bot=True
+    )
+
+
+@router.callback_query(F.data == "back_to_result")
+async def back_to_result(callback: CallbackQuery, state: FSMContext) -> None:
+    """Возврат к результату расчёта из меню редактирования."""
+    await safe_answer_callback(callback)
+    
+    data = await state.get_data()
+    user = callback.from_user
+    
+    calculation = calculate_total(data)
+    area_note, profile_info, lighting_info = _format_result_info(calculation)
+    
+    result_text = RESULT_MESSAGE.format(
+        area=calculation.area,
+        area_note=area_note,
+        cornice_info=profile_info,
+        lighting_info=lighting_info,
+        total=calculation.total_cost,
+    )
+    
+    await callback.message.answer(result_text, reply_markup=get_result_keyboard(), parse_mode=ParseMode.HTML)
+    await state.set_state(CalculationStates.showing_result)
+    
+    chat_logger.log_message(user_id=user.id, username="БОТ", message="📊 Результат расчёта", is_bot=True)
+
+
+@router.callback_query(F.data == "edit_area")
+async def edit_area(callback: CallbackQuery, state: FSMContext) -> None:
+    """Редактирование площади."""
+    await safe_answer_callback(callback)
+    await state.update_data(editing_mode=True)
+    await ask_area(callback.message, state, callback.from_user.id)
+
+
+@router.callback_query(F.data == "edit_profile")
+async def edit_profile(callback: CallbackQuery, state: FSMContext) -> None:
+    """Редактирование профиля."""
+    await safe_answer_callback(callback)
+    await state.update_data(editing_mode=True)
+    await _ask_profile(callback.message, state, callback.from_user.id)
+
+
+@router.callback_query(F.data == "edit_cornice")
+async def edit_cornice(callback: CallbackQuery, state: FSMContext) -> None:
+    """Редактирование карниза."""
+    await safe_answer_callback(callback)
+    await state.update_data(editing_mode=True)
+    await _ask_cornice_type(callback.message, state, callback.from_user.id)
+
+
+@router.callback_query(F.data == "edit_spotlights")
+async def edit_spotlights(callback: CallbackQuery, state: FSMContext) -> None:
+    """Редактирование количества светильников."""
+    await safe_answer_callback(callback)
+    await state.update_data(editing_mode=True)
+    await _ask_spotlights(callback.message, state, callback.from_user.id)
+
+
+@router.callback_query(F.data == "edit_chandeliers")
+async def edit_chandeliers(callback: CallbackQuery, state: FSMContext) -> None:
+    """Редактирование количества люстр."""
+    await safe_answer_callback(callback)
+    await state.update_data(editing_mode=True)
+    await _ask_chandeliers(callback.message, state, callback.from_user.id)
 
 
 # ============================================

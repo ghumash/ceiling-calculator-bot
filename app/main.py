@@ -7,6 +7,7 @@ from pathlib import Path
 from aiogram import Bot, Dispatcher
 from aiogram.exceptions import TelegramConflictError
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.types import BotCommand
 from dotenv import load_dotenv
 
 from app.core.config import settings
@@ -64,6 +65,15 @@ async def main() -> None:
         logger.error(f"Не удалось подключиться к Telegram API: {e}")
         await bot.session.close()
         raise
+
+    # Установка команд бота (всплывающее меню)
+    commands = [
+        BotCommand(command="start", description="Начать новый расчёт"),
+        BotCommand(command="edit", description="Изменить параметры расчёта"),
+        BotCommand(command="help", description="Справка по командам"),
+    ]
+    await bot.set_my_commands(commands)
+    logger.info("Команды бота установлены")
 
     logger.info("Запуск polling...")
 

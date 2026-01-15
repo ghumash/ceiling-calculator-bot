@@ -6,9 +6,15 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 
-from app.bot.keyboards.inline import get_contact_method_keyboard
+from app.bot.keyboards.inline import get_contact_method_keyboard, get_edit_params_keyboard
 from app.bot.states import CalculationStates
-from app.templates.messages.texts import WELCOME_MESSAGE, MANAGER_CONTACTS
+from app.templates.messages.texts import (
+    WELCOME_MESSAGE,
+    MANAGER_CONTACTS,
+    EDIT_PARAMS_MESSAGE,
+    HELP_MESSAGE,
+    NO_CALCULATION_MESSAGE,
+)
 from app.services.chat_logger import chat_logger
 from app.core.config import settings
 from app.bot.handlers.calculation import ask_area
@@ -97,3 +103,45 @@ async def start_bot_calculation(callback: CallbackQuery, state: FSMContext) -> N
     """Начало автоматического расчёта — переход к вопросу о площади."""
     await safe_answer_callback(callback)
     await ask_area(callback.message, state, callback.from_user.id)
+
+
+@router.message(Command("edit"))
+async def cmd_edit(message: Message, state: FSMContext) -> None:
+    """Обработчик команды /edit — редактирование параметров."""
+    data = await state.get_data()
+    
+    username = get_user_display_name(message.from_user)
+    chat_logger.log_message(
+        user_id=message.from_user.id, username=username, message="/edit", is_bot=False
+    )
+    
+    # Проверяем наличие активного расчёта
+    if not data.get("area"):
+        await message.answer(NO_CALCULATION_MESSAGE, parse_mode=ParseMode.HTML)
+        chat_logger.log_message(
+            user_id=message.from_user.id, username="БОТ", message=NO_CALCULATION_MESSAGE, is_bot=True
+        )
+        return
+    
+    await message.answer(
+        EDIT_PARAMS_MESSAGE,
+        reply_markup=get_edit_params_keyboard(data),
+        parse_mode=ParseMode.HTML
+    )
+    chat_logger.log_message(
+        user_id=message.from_user.id, username="БОТ", message=EDIT_PARAMS_MESSAGE, is_bot=True
+    )
+
+
+@router.message(Command("help"))
+async def cmd_help(message: Message) -> None:
+    """Обработчик команды /help."""
+    username = get_user_display_name(message.from_user)
+    chat_logger.log_message(
+        user_id=message.from_user.id, username=username, message="/help", is_bot=False
+    )
+    
+    await message.answer(HELP_MESSAGE, parse_mode=ParseMode.HTML)
+    chat_logger.log_message(
+        user_id=message.from_user.id, username="БОТ", message=HELP_MESSAGE, is_bot=True
+    )
