@@ -30,3 +30,12 @@ class CalculationStates(StatesGroup):
     entering_name = State()
     entering_phone = State()
     entering_address = State()
+
+    # Режим редактирования
+    editing_menu = State()
+    editing_area = State()
+    editing_profile = State()
+    editing_cornice_length = State()
+    editing_cornice_type = State()
+    editing_spotlights = State()
+    editing_chandeliers = State()
