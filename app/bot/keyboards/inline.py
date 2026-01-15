@@ -64,10 +64,18 @@ def get_cornice_keyboard() -> InlineKeyboardMarkup:
     """Клавиатура выбора карниза."""
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="ПК-14", callback_data="cornice_pk14")],
-            [InlineKeyboardButton(text="ПК-5", callback_data="cornice_pk5")],
-            [InlineKeyboardButton(text="БП-40", callback_data="cornice_bp40")],
-            [InlineKeyboardButton(text="Без карнизов", callback_data="cornice_none")],
+            [
+                InlineKeyboardButton(text="ПК-5", callback_data="cornice_pk5"),
+                InlineKeyboardButton(text="АМ-1", callback_data="cornice_am1"),
+            ],
+            [
+                InlineKeyboardButton(text="ПК-14", callback_data="cornice_pk14"),
+                InlineKeyboardButton(text="БП-П", callback_data="cornice_bpp"),
+            ],
+            [
+                InlineKeyboardButton(text="БП-40", callback_data="cornice_bp40"),
+                InlineKeyboardButton(text="Без карнизов", callback_data="cornice_none"),
+            ],
         ]
     )
     return add_back_button(keyboard)

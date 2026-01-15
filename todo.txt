@@ -16,4 +16,8 @@ vopros "Выберите тип карниза:" tolko zarabaticaet togda kogda 
 
 7. добавить виды трековых линии - встроенный накладной с возможностью выбора каждого и каждого количество
 
-8. menyat otpravku na user -> group
+8. menyat otpravku na user -> group ✅ 
+
+9. knopka nazad peredelat
+
+10. udalit pole ID s raschetov otpravki v chatax

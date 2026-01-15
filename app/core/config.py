@@ -36,8 +36,10 @@ class Settings(BaseSettings):
     perimeter_coefficient: float = 1.5
 
     # Цены - Карнизы (за погонный метр)
-    cornice_pk14_price: int = 3844
     cornice_pk5_price: int = 2819
+    cornice_am1_price: int = 2500
+    cornice_pk14_price: int = 3844
+    cornice_bpp_price: int = 923
     cornice_bp40_price: int = 1282
 
     # Цены - Освещение (за штуку)

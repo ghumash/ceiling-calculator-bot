@@ -57,8 +57,10 @@ def calculate_cornice_cost(length: float, cornice_type: str | None) -> float:
         return 0.0
 
     cornice_prices = {
-        "pk14": settings.cornice_pk14_price,
         "pk5": settings.cornice_pk5_price,
+        "am1": settings.cornice_am1_price,
+        "pk14": settings.cornice_pk14_price,
+        "bpp": settings.cornice_bpp_price,
         "bp40": settings.cornice_bp40_price,
     }
 
