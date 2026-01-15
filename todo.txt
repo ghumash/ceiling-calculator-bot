@@ -19,3 +19,5 @@ vopros "Выберите тип карниза:" tolko zarabaticaet togda kogda 
 8. menyat otpravku na user -> group ✅
 
 9. udalit pole ID s raschetov otpravki v chatax ✅
+
+10. menyat tekst na Сколько закладных под люстру нужно установить? ✅
