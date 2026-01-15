@@ -162,7 +162,7 @@ def format_chandeliers_details(count: int, cost: float, price_per_unit: int) -> 
     return f"• Люстры ({count} шт × {price_per_unit} ₽): {cost:,.0f} ₽\n"
 
 # Отчёт админу
-ADMIN_REPORT = """🔔 НОВЫЙ РАСЧЁТ
+ADMIN_REPORT = """🔔 {title}
 
 👤 Пользователь:
 - Username: {username}

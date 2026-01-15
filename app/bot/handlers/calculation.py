@@ -269,7 +269,7 @@ async def _process_area(message: Message, state: FSMContext, area: float, user_i
     chat_logger.log_message(user_id=user_id, username="БОТ", message=response, is_bot=True)
 
     if editing_mode and data.get("profile_type"):
-        await _show_result_after_edit(message, state, user_id)
+        await _show_result_after_edit(message, state, message.from_user)
     else:
         await _ask_profile(message, state, user_id)
 
@@ -323,7 +323,7 @@ async def process_profile(callback: CallbackQuery, state: FSMContext) -> None:
     )
 
     if editing_mode and data.get("spotlights") is not None:
-        await _show_result_after_edit(callback.message, state, callback.from_user.id)
+        await _show_result_after_edit(callback.message, state, callback.from_user)
     else:
         await _ask_cornice_type(callback.message, state, callback.from_user.id)
 
@@ -370,7 +370,7 @@ async def process_cornice_type(callback: CallbackQuery, state: FSMContext) -> No
         )
         
         if editing_mode and data.get("spotlights") is not None:
-            await _show_result_after_edit(callback.message, state, callback.from_user.id)
+            await _show_result_after_edit(callback.message, state, callback.from_user)
         else:
             await _ask_spotlights(callback.message, state, callback.from_user.id)
         return
@@ -445,7 +445,7 @@ async def process_cornice_length(message: Message, state: FSMContext) -> None:
     )
 
     if editing_mode and data.get("spotlights") is not None:
-        await _show_result_after_edit(message, state, message.from_user.id)
+        await _show_result_after_edit(message, state, message.from_user)
     else:
         await _ask_spotlights(message, state, message.from_user.id)
 
@@ -513,7 +513,7 @@ async def _process_spotlights(
     chat_logger.log_message(user_id=user_id, username="БОТ", message=response, is_bot=True)
 
     if editing_mode and data.get("chandeliers") is not None:
-        await _show_result_after_edit(message, state, user_id)
+        await _show_result_after_edit(message, state, message.from_user)
     else:
         await _ask_chandeliers(message, state, user_id)
 
@@ -579,7 +579,7 @@ async def _process_chandeliers(
     chat_logger.log_message(user_id=user.id, username="БОТ", message=response, is_bot=True)
 
     if editing_mode:
-        await _show_result_after_edit(message, state, user.id)
+        await _show_result_after_edit(message, state, user)
     else:
         await _show_result(message, state, user)
 
@@ -710,7 +710,9 @@ async def _send_notification(bot: Bot, chat_id: int, report: str) -> None:
             logger.warning(f"Не удалось отправить уведомление в чат {chat_id}: {e}")
 
 
-async def _notify_admin(bot: Bot, user: User, calculation: CalculationData, data: dict) -> None:
+async def _notify_admin(
+    bot: Bot, user: User, calculation: CalculationData, data: dict, is_update: bool = False
+) -> None:
     """Отправляет уведомление о завершении расчёта в канал, группу и/или менеджерам."""
     if not bot:
         return
@@ -718,11 +720,13 @@ async def _notify_admin(bot: Bot, user: User, calculation: CalculationData, data
     try:
         username = f"@{user.username}" if user.username else "нет username"
         date = datetime.now().strftime("%d.%m.%Y %H:%M")
+        title = "ИЗМЕНЁННЫЙ РАСЧЁТ ✏️" if is_update else "НОВЫЙ РАСЧЁТ"
 
         area_note, profile_info, lighting_info = _format_result_info(calculation)
         details = _format_admin_details(calculation)
 
         admin_report = ADMIN_REPORT.format(
+            title=title,
             username=username,
             full_name=user.full_name,
             date=date,
@@ -755,8 +759,8 @@ async def _notify_admin(bot: Bot, user: User, calculation: CalculationData, data
 # ============================================
 
 
-async def _show_result_after_edit(message: Message, state: FSMContext, user_id: int) -> None:
-    """Показывает результат расчёта после редактирования параметра."""
+async def _show_result_after_edit(message: Message, state: FSMContext, user: User) -> None:
+    """Показывает результат расчёта после редактирования и уведомляет менеджеров."""
     data = await state.get_data()
     calculation = calculate_total(data)
     area_note, profile_info, lighting_info = _format_result_info(calculation)
@@ -772,7 +776,10 @@ async def _show_result_after_edit(message: Message, state: FSMContext, user_id: 
     await message.answer(result_text, reply_markup=get_result_keyboard(), parse_mode=ParseMode.HTML)
     await state.set_state(CalculationStates.showing_result)
     
-    chat_logger.log_message(user_id=user_id, username="БОТ", message="📊 Обновлённый результат", is_bot=True)
+    chat_logger.log_message(user_id=user.id, username="БОТ", message="📊 Обновлённый результат", is_bot=True)
+    
+    # Уведомление менеджеров об изменённом расчёте
+    await _notify_admin(message.bot, user, calculation, data, is_update=True)
 
 
 @router.callback_query(F.data == "edit_params")
