@@ -691,7 +691,6 @@ async def _notify_admin(bot: Bot, user: User, calculation: CalculationData, data
         details = _format_admin_details(calculation)
 
         admin_report = ADMIN_REPORT.format(
-            user_id=user.id,
             username=username,
             full_name=user.full_name,
             date=date,
@@ -896,7 +895,6 @@ async def _notify_manager_about_measurement(bot: Bot, user: User, state: FSMCont
         date = datetime.now().strftime("%d.%m.%Y %H:%M")
 
         measurement_report = MEASUREMENT_REPORT.format(
-            user_id=user.id,
             username=username,
             full_name=user.full_name,
             customer_name=customer_name,

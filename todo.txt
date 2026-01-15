@@ -7,10 +7,10 @@ vopros "Выберите тип карниза:" tolko zarabaticaet togda kogda 
 
 4. Укажите общую длину всех карнизов в погонных метрах
 Если не нужно — напишите 0
-убрать «Если не нужно — напишите 0» ✅ 
+убрать «Если не нужно — напишите 0» ✅
 
 5. Ниша под карниз без перегиба
-менять фото БП40 
+менять фото БП40 ✅
 
 6. добавить виды светильников - встроенный накладной подвесной с возможностью выбора каждого и каждого количество
 
@@ -20,4 +20,4 @@ vopros "Выберите тип карниза:" tolko zarabaticaet togda kogda 
 
 9. knopka nazad peredelat
 
-10. udalit pole ID s raschetov otpravki v chatax
+10. udalit pole ID s raschetov otpravki v chatax 

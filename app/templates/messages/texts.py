@@ -165,7 +165,6 @@ def format_chandeliers_details(count: int, cost: float, price_per_unit: int) -> 
 ADMIN_REPORT = """🔔 НОВЫЙ РАСЧЁТ
 
 👤 Пользователь:
-- ID: {user_id}
 - Username: {username}
 - Имя: {full_name}
 - Дата: {date}
@@ -246,7 +245,6 @@ MEASUREMENT_THANK_YOU = """<b>Спасибо!</b> Наш замерщик в б�
 MEASUREMENT_REPORT = """📐 <b>ОТЧЁТ О ЗАКАЗЕ ЗАМЕРА</b>
 
 👤 <b>Пользователь:</b>
-• ID: {user_id}
 • Username: {username}
 • Имя в Telegram: {full_name}
 
