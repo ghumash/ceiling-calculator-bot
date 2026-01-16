@@ -220,7 +220,7 @@ def get_result_keyboard() -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton(
-                    text="📐 Бесплатный выезд замерщика", callback_data="order_measurement"
+                    text="📐 Заказать бесплатный замер", callback_data="order_measurement"
                 )
             ],
         ]

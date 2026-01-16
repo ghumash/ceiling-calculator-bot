@@ -1295,9 +1295,27 @@ def _format_result_info(calculation: CalculationData) -> tuple[str, str, str]:
     total_spotlights = calculation.spotlights_builtin + calculation.spotlights_surface + calculation.spotlights_pendant
     if total_spotlights > 0:
         lighting_info += f"• Точечные светильники: {total_spotlights} шт\n"
+        details = []
+        if calculation.spotlights_builtin > 0:
+            details.append(f"  - Встроенные ({calculation.spotlights_builtin} шт)")
+        if calculation.spotlights_surface > 0:
+            details.append(f"  - Накладные ({calculation.spotlights_surface} шт)")
+        if calculation.spotlights_pendant > 0:
+            details.append(f"  - Подвесные ({calculation.spotlights_pendant} шт)")
+        if details:
+            lighting_info += "\n".join(details) + "\n"
+    
     total_tracks = calculation.track_surface_length + calculation.track_builtin_length
     if total_tracks > 0:
         lighting_info += f"• Треки: {total_tracks} м\n"
+        details = []
+        if calculation.track_surface_length > 0:
+            details.append(f"  - Накладные ({calculation.track_surface_length} м)")
+        if calculation.track_builtin_length > 0:
+            details.append(f"  - Встроенные ({calculation.track_builtin_length} м)")
+        if details:
+            lighting_info += "\n".join(details) + "\n"
+    
     if calculation.light_lines > 0:
         lighting_info += f"• Световые линии: {calculation.light_lines} м\n"
     if calculation.chandeliers > 0:
