@@ -968,7 +968,7 @@ async def _notify_admin(
         area_note, profile_info, lighting_info = _format_result_info(calculation)
         details = _format_admin_details(calculation)
 
-        wall_status = "✅ Да (можно на замер)" if calculation.wall_finish else "❌ Нет"
+        wall_status = "✅" if calculation.wall_finish else "❌"
         
         admin_report = ADMIN_REPORT.format(
             title=title,
