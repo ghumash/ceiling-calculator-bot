@@ -142,9 +142,9 @@ def get_lighting_types_keyboard(selected: set[str]) -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton(text="⬅️ Назад", callback_data="go_back"),
-                InlineKeyboardButton(text="Готово ✅", callback_data="lighting_done"),
                 InlineKeyboardButton(text="Пропустить ➡️", callback_data="lighting_skip"),
             ],
+            [InlineKeyboardButton(text="Готово ✅", callback_data="lighting_done")],
         ]
     )
 
