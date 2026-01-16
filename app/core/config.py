@@ -43,9 +43,9 @@ class Settings(BaseSettings):
     cornice_bp40_price: int = 1282
 
     # Цены - Светильники (за штуку)
-    spotlight_builtin_price: int = 513   # Встроенные
-    spotlight_surface_price: int = 600   # Накладные
-    spotlight_pendant_price: int = 700   # Подвесные
+    spotlight_builtin_price: int = 462   # Встроенные
+    spotlight_surface_price: int = 513   # Накладные
+    spotlight_pendant_price: int = 564   # Подвесные
     chandelier_price: int = 550
 
     # Цены - Треки (за погонный метр)
