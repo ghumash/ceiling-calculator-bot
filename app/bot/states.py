@@ -19,7 +19,10 @@ class CalculationStates(StatesGroup):
     entering_cornice_length = State()
     choosing_cornice_type = State()
 
-    # Освещение
+    # Освещение - выбор типов
+    choosing_lighting_types = State()
+
+    # Освещение - детали
     entering_spotlights = State()
     choosing_track_type = State()
     entering_track_length = State()

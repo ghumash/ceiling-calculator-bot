@@ -103,6 +103,53 @@ def get_cornice_keyboard() -> InlineKeyboardMarkup:
     return add_back_button(keyboard)
 
 
+def get_lighting_types_keyboard(selected: set[str]) -> InlineKeyboardMarkup:
+    """Клавиатура множественного выбора типов освещения.
+    
+    Args:
+        selected: Множество выбранных типов ('spotlights', 'tracks', 'light_lines', 'chandeliers')
+    """
+    def mark(key: str, label: str) -> str:
+        return f"✅ {label}" if key in selected else label
+    
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=mark("spotlights", "Точечные светильники"),
+                    callback_data="toggle_spotlights"
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text=mark("tracks", "Трековые линии"),
+                    callback_data="toggle_tracks"
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text=mark("light_lines", "Световые линии"),
+                    callback_data="toggle_light_lines"
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text=mark("chandeliers", "Люстры"),
+                    callback_data="toggle_chandeliers"
+                ),
+            ],
+            [
+                InlineKeyboardButton(text="Готово ➡️", callback_data="lighting_done"),
+                InlineKeyboardButton(text="Все по шагам", callback_data="lighting_all_steps"),
+            ],
+            [
+                InlineKeyboardButton(text="⬅️ Назад", callback_data="go_back"),
+                InlineKeyboardButton(text="Пропустить", callback_data="lighting_skip"),
+            ],
+        ]
+    )
+
+
 def get_track_type_keyboard() -> InlineKeyboardMarkup:
     """Клавиатура выбора типа треков."""
     return InlineKeyboardMarkup(
