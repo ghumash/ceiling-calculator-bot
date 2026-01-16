@@ -138,10 +138,7 @@ def get_lighting_types_keyboard(selected: set[str]) -> InlineKeyboardMarkup:
                     callback_data="toggle_chandeliers"
                 ),
             ],
-            [
-                InlineKeyboardButton(text="Готово ➡️", callback_data="lighting_done"),
-                InlineKeyboardButton(text="Все по шагам", callback_data="lighting_all_steps"),
-            ],
+            [InlineKeyboardButton(text="Готово", callback_data="lighting_done")],
             [
                 InlineKeyboardButton(text="⬅️ Назад", callback_data="go_back"),
                 InlineKeyboardButton(text="Пропустить", callback_data="lighting_skip"),

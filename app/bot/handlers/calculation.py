@@ -727,18 +727,6 @@ async def lighting_done(callback: CallbackQuery, state: FSMContext) -> None:
     await _process_next_lighting(callback.message, state, callback.from_user.id)
 
 
-@router.callback_query(CalculationStates.choosing_lighting_types, F.data == "lighting_all_steps")
-async def lighting_all_steps(callback: CallbackQuery, state: FSMContext) -> None:
-    """Переходит ко всем вопросам освещения последовательно."""
-    await safe_answer_callback(callback)
-    
-    await state.update_data(
-        selected_lighting=None,
-        all_lighting_steps=True
-    )
-    await _ask_spotlights(callback.message, state, callback.from_user.id)
-
-
 @router.callback_query(CalculationStates.choosing_lighting_types, F.data == "lighting_skip")
 async def lighting_skip(callback: CallbackQuery, state: FSMContext) -> None:
     """Пропускает все вопросы освещения."""
