@@ -16,7 +16,7 @@ def get_skip_keyboard() -> InlineKeyboardMarkup:
     """Клавиатура с кнопками 'Пропустить' и 'Назад'."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="Пропустить", callback_data="skip_zero")],
+            [InlineKeyboardButton(text="Пропустить ➡️", callback_data="skip_zero")],
             [InlineKeyboardButton(text="⬅️ Назад", callback_data="go_back")],
         ]
     )
@@ -28,7 +28,7 @@ def get_skip_row_keyboard() -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(text="⬅️ Назад", callback_data="go_back"),
-                InlineKeyboardButton(text="Пропустить", callback_data="skip_zero"),
+                InlineKeyboardButton(text="Пропустить ➡️", callback_data="skip_zero"),
             ],
         ]
     )
@@ -84,7 +84,7 @@ def get_profile_keyboard() -> InlineKeyboardMarkup:
 
 def get_cornice_keyboard() -> InlineKeyboardMarkup:
     """Клавиатура выбора карниза."""
-    keyboard = InlineKeyboardMarkup(
+    return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(text="ПК-5", callback_data="cornice_pk5"),
@@ -94,13 +94,13 @@ def get_cornice_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text="ПК-14", callback_data="cornice_pk14"),
                 InlineKeyboardButton(text="БП-П", callback_data="cornice_bpp"),
             ],
+            [InlineKeyboardButton(text="БП-40", callback_data="cornice_bp40")],
             [
-                InlineKeyboardButton(text="БП-40", callback_data="cornice_bp40"),
-                InlineKeyboardButton(text="Без карнизов", callback_data="cornice_none"),
+                InlineKeyboardButton(text="⬅️ Назад", callback_data="go_back"),
+                InlineKeyboardButton(text="Пропустить ➡️", callback_data="cornice_none"),
             ],
         ]
     )
-    return add_back_button(keyboard)
 
 
 def get_lighting_types_keyboard(selected: set[str]) -> InlineKeyboardMarkup:
@@ -141,7 +141,7 @@ def get_lighting_types_keyboard(selected: set[str]) -> InlineKeyboardMarkup:
             [
                 InlineKeyboardButton(text="⬅️ Назад", callback_data="go_back"),
                 InlineKeyboardButton(text="Готово ✅", callback_data="lighting_done"),
-                InlineKeyboardButton(text="Пропустить", callback_data="lighting_skip"),
+                InlineKeyboardButton(text="Пропустить ➡️", callback_data="lighting_skip"),
             ],
         ]
     )
@@ -157,7 +157,7 @@ def get_track_type_keyboard() -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton(text="⬅️ Назад", callback_data="go_back"),
-                InlineKeyboardButton(text="Пропустить", callback_data="track_none"),
+                InlineKeyboardButton(text="Пропустить ➡️", callback_data="track_none"),
             ],
         ]
     )

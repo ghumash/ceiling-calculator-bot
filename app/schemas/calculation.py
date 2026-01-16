@@ -7,7 +7,7 @@ class CalculationData(BaseModel):
     """Данные расчёта стоимости натяжного потолка."""
 
     # Площадь
-    area: float = Field(..., gt=0, le=500, description="Площадь помещения в м²")
+    area: float = Field(..., gt=0, le=1000, description="Площадь помещения в м²")
     area_for_calculation: float = Field(
         default=0, description="Площадь для расчёта (мин. 20м²)"
     )
