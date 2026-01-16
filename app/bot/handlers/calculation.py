@@ -77,6 +77,7 @@ from app.templates.messages.texts import (
     format_chandeliers_details,
     format_track_details,
     format_light_lines_details,
+    with_progress,
 )
 from app.services.chat_logger import chat_logger
 from app.services.calculator import calculate_total
@@ -88,6 +89,18 @@ from app.utils.images import send_image_if_exists
 from app.utils.callback import safe_answer_callback
 
 logger = logging.getLogger(__name__)
+
+# Номера шагов для прогресс-бара
+STEP_AREA = 1
+STEP_PROFILE = 2
+STEP_CORNICE_TYPE = 3
+STEP_CORNICE_LENGTH = 4
+STEP_SPOTLIGHTS = 5
+STEP_TRACK_TYPE = 6
+STEP_TRACK_LENGTH = 7
+STEP_LIGHT_LINES = 8
+STEP_CHANDELIERS = 9
+STEP_WALL_FINISH = 10
 router = Router()
 
 
@@ -273,7 +286,7 @@ async def ask_area(message: Message, state: FSMContext, user_id: int) -> None:
     """Запрашивает площадь помещения."""
     # Сохраняем предыдущее состояние
     await state.update_data(previous_state=CalculationStates.choosing_contact_method)
-    await message.answer(AREA_QUESTION, reply_markup=get_back_keyboard(), parse_mode=ParseMode.HTML)
+    await message.answer(with_progress(AREA_QUESTION, STEP_AREA), reply_markup=get_back_keyboard(), parse_mode=ParseMode.HTML)
     await state.set_state(CalculationStates.waiting_for_area)
 
     chat_logger.log_message(user_id=user_id, username="БОТ", message=AREA_QUESTION, is_bot=True)
@@ -334,7 +347,7 @@ async def _ask_profile(message: Message, state: FSMContext, user_id: int) -> Non
     
     await send_image_if_exists(message, profile_photo_path, fallback_paths)
 
-    await message.answer(PROFILE_QUESTION, reply_markup=get_profile_keyboard(), parse_mode=ParseMode.HTML)
+    await message.answer(with_progress(PROFILE_QUESTION, STEP_PROFILE), reply_markup=get_profile_keyboard(), parse_mode=ParseMode.HTML)
     await state.set_state(CalculationStates.choosing_profile)
 
     chat_logger.log_message(user_id=user_id, username="БОТ", message=PROFILE_QUESTION, is_bot=True)
@@ -388,7 +401,7 @@ async def _ask_cornice_type(message: Message, state: FSMContext, user_id: int) -
     
     await send_image_if_exists(message, cornice_photo_path, fallback_paths)
 
-    await message.answer(CORNICE_TYPE_QUESTION, reply_markup=get_cornice_keyboard(), parse_mode=ParseMode.HTML)
+    await message.answer(with_progress(CORNICE_TYPE_QUESTION, STEP_CORNICE_TYPE), reply_markup=get_cornice_keyboard(), parse_mode=ParseMode.HTML)
     await state.set_state(CalculationStates.choosing_cornice_type)
 
     chat_logger.log_message(
@@ -440,7 +453,7 @@ async def _ask_cornice_length(message: Message, state: FSMContext, user_id: int)
     """Запрашивает длину карнизов."""
     # Сохраняем предыдущее состояние
     await state.update_data(previous_state=CalculationStates.choosing_cornice_type)
-    await message.answer(CORNICE_LENGTH_QUESTION, reply_markup=get_back_keyboard(), parse_mode=ParseMode.HTML)
+    await message.answer(with_progress(CORNICE_LENGTH_QUESTION, STEP_CORNICE_LENGTH), reply_markup=get_back_keyboard(), parse_mode=ParseMode.HTML)
     await state.set_state(CalculationStates.entering_cornice_length)
 
     chat_logger.log_message(
@@ -508,7 +521,7 @@ async def _ask_spotlights(message: Message, state: FSMContext, user_id: int) -> 
     
     lighting_path = Path(settings.lighting_dir)
     await send_image_if_exists(message, lighting_path / "spotlights.jpg")
-    await message.answer(SPOTLIGHTS_QUESTION, reply_markup=get_skip_row_keyboard(), parse_mode=ParseMode.HTML)
+    await message.answer(with_progress(SPOTLIGHTS_QUESTION, STEP_SPOTLIGHTS), reply_markup=get_skip_row_keyboard(), parse_mode=ParseMode.HTML)
     await state.set_state(CalculationStates.entering_spotlights)
 
     chat_logger.log_message(
@@ -577,7 +590,7 @@ async def _ask_track_type(message: Message, state: FSMContext, user_id: int) -> 
     lighting_path = Path(settings.lighting_dir)
     await send_image_if_exists(message, lighting_path / "tracks_all.jpg", [])
     
-    await message.answer(TRACK_TYPE_QUESTION, reply_markup=get_track_type_keyboard(), parse_mode=ParseMode.HTML)
+    await message.answer(with_progress(TRACK_TYPE_QUESTION, STEP_TRACK_TYPE), reply_markup=get_track_type_keyboard(), parse_mode=ParseMode.HTML)
     await state.set_state(CalculationStates.choosing_track_type)
     chat_logger.log_message(user_id=user_id, username="БОТ", message=TRACK_TYPE_QUESTION, is_bot=True)
 
@@ -618,7 +631,7 @@ async def process_track_type(callback: CallbackQuery, state: FSMContext) -> None
 async def _ask_track_length(message: Message, state: FSMContext, user_id: int) -> None:
     """Запрашивает длину треков."""
     await state.update_data(previous_state=CalculationStates.choosing_track_type)
-    await message.answer(TRACK_LENGTH_QUESTION, reply_markup=get_back_keyboard(), parse_mode=ParseMode.HTML)
+    await message.answer(with_progress(TRACK_LENGTH_QUESTION, STEP_TRACK_LENGTH), reply_markup=get_back_keyboard(), parse_mode=ParseMode.HTML)
     await state.set_state(CalculationStates.entering_track_length)
     chat_logger.log_message(user_id=user_id, username="БОТ", message=TRACK_LENGTH_QUESTION, is_bot=True)
 
@@ -668,7 +681,7 @@ async def _ask_light_lines(message: Message, state: FSMContext, user_id: int) ->
     lighting_path = Path(settings.lighting_dir)
     await send_image_if_exists(message, lighting_path / "light_lines.jpg", [])
     
-    await message.answer(LIGHT_LINES_QUESTION, reply_markup=get_skip_keyboard(), parse_mode=ParseMode.HTML)
+    await message.answer(with_progress(LIGHT_LINES_QUESTION, STEP_LIGHT_LINES), reply_markup=get_skip_keyboard(), parse_mode=ParseMode.HTML)
     await state.set_state(CalculationStates.entering_light_lines)
     chat_logger.log_message(user_id=user_id, username="БОТ", message=LIGHT_LINES_QUESTION, is_bot=True)
 
@@ -711,7 +724,7 @@ async def process_light_lines(message: Message, state: FSMContext) -> None:
 async def _ask_chandeliers(message: Message, state: FSMContext, user_id: int) -> None:
     """Запрашивает количество люстр."""
     await state.update_data(previous_state=CalculationStates.entering_light_lines)
-    await message.answer(CHANDELIERS_QUESTION, reply_markup=get_skip_row_keyboard(), parse_mode=ParseMode.HTML)
+    await message.answer(with_progress(CHANDELIERS_QUESTION, STEP_CHANDELIERS), reply_markup=get_skip_row_keyboard(), parse_mode=ParseMode.HTML)
     await state.set_state(CalculationStates.entering_chandeliers)
     chat_logger.log_message(user_id=user_id, username="БОТ", message=CHANDELIERS_QUESTION, is_bot=True)
 
@@ -773,7 +786,7 @@ async def _process_chandeliers(
 async def _ask_wall_finish(message: Message, state: FSMContext, user_id: int) -> None:
     """Запрашивает информацию о чистовых работах стен."""
     await state.update_data(previous_state=CalculationStates.entering_chandeliers)
-    await message.answer(WALL_FINISH_QUESTION, reply_markup=get_wall_finish_keyboard(), parse_mode=ParseMode.HTML)
+    await message.answer(with_progress(WALL_FINISH_QUESTION, STEP_WALL_FINISH), reply_markup=get_wall_finish_keyboard(), parse_mode=ParseMode.HTML)
     await state.set_state(CalculationStates.choosing_wall_finish)
     chat_logger.log_message(user_id=user_id, username="БОТ", message=WALL_FINISH_QUESTION, is_bot=True)
 
