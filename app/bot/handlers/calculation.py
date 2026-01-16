@@ -15,7 +15,6 @@ from app.bot.keyboards.inline import (
     get_cornice_keyboard,
     get_result_keyboard,
     get_back_keyboard,
-    get_skip_keyboard,
     get_skip_row_keyboard,
     get_contact_method_keyboard,
     get_edit_params_keyboard,
@@ -681,7 +680,7 @@ async def _ask_light_lines(message: Message, state: FSMContext, user_id: int) ->
     lighting_path = Path(settings.lighting_dir)
     await send_image_if_exists(message, lighting_path / "light_lines.jpg", [])
     
-    await message.answer(with_progress(LIGHT_LINES_QUESTION, STEP_LIGHT_LINES), reply_markup=get_skip_keyboard(), parse_mode=ParseMode.HTML)
+    await message.answer(with_progress(LIGHT_LINES_QUESTION, STEP_LIGHT_LINES), reply_markup=get_skip_row_keyboard(), parse_mode=ParseMode.HTML)
     await state.set_state(CalculationStates.entering_light_lines)
     chat_logger.log_message(user_id=user_id, username="БОТ", message=LIGHT_LINES_QUESTION, is_bot=True)
 

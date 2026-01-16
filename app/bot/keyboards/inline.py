@@ -111,7 +111,7 @@ def get_track_type_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text="Накладные", callback_data="track_surface"),
                 InlineKeyboardButton(text="Встроенные", callback_data="track_built_in"),
             ],
-            [InlineKeyboardButton(text="Без треков", callback_data="track_none")],
+            [InlineKeyboardButton(text="Пропустить", callback_data="track_none")],
         ]
     )
     return add_back_button(keyboard)
