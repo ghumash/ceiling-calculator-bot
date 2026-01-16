@@ -54,7 +54,7 @@ def get_contact_method_keyboard() -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="🤖 Сделать предрасчёт с помощью бота", callback_data="method_bot"
+                    text="🤖 Сделать предрасчёт сейчас", callback_data="method_bot"
                 )
             ],
             [
