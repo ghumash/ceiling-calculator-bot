@@ -724,6 +724,8 @@ async def process_light_lines(message: Message, state: FSMContext) -> None:
 async def _ask_chandeliers(message: Message, state: FSMContext, user_id: int) -> None:
     """Запрашивает количество люстр."""
     await state.update_data(previous_state=CalculationStates.entering_light_lines)
+    lighting_path = Path(settings.lighting_dir)
+    await send_image_if_exists(message, lighting_path / "chandeliers.jpg")
     await message.answer(with_progress(CHANDELIERS_QUESTION, STEP_CHANDELIERS), reply_markup=get_skip_row_keyboard(), parse_mode=ParseMode.HTML)
     await state.set_state(CalculationStates.entering_chandeliers)
     chat_logger.log_message(user_id=user_id, username="БОТ", message=CHANDELIERS_QUESTION, is_bot=True)
