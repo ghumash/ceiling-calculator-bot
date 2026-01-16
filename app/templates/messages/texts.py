@@ -124,7 +124,7 @@ TRACK_BUILTIN_LENGTH_QUESTION = """Укажите <b>длину встроенн
 
 💡 <i>Например: 5.5</i>"""
 
-TRACK_LENGTH_ACCEPTED = """✅ <b>{track_type}:</b> {length} м"""
+TRACK_LENGTH_ACCEPTED = """✅ <b>{track_type}:</b> {length} пог.м"""
 
 TRACK_INVALID_INPUT = "❌ Пожалуйста, укажите <b>число</b>\n\n💡 <i>Например: 5.5</i>"
 
@@ -134,7 +134,7 @@ LIGHT_LINES_QUESTION = """Укажите <b>общую длину световы
 
 💡 <i>Например: 3.5</i>"""
 
-LIGHT_LINES_ACCEPTED = """✅ <b>Световые линии:</b> {length} м"""
+LIGHT_LINES_ACCEPTED = """✅ <b>Световые линии:</b> {length} пог.м"""
 
 LIGHT_LINES_INVALID_INPUT = "❌ Пожалуйста, укажите <b>число</b>\n\n💡 <i>Например: 3.5</i>"
 
@@ -199,7 +199,7 @@ def format_profile_details(name: str, length: float, cost: float) -> str:
     Returns:
         Отформатированная строка
     """
-    return f"• Профиль {name} ({length:.1f} м): {cost:,.0f} ₽\n"
+    return f"• Профиль {name} ({length:.1f} пог.м): {cost:,.0f} ₽\n"
 
 
 def format_cornice_details(cornice_type: str, length: float, cost: float) -> str:
@@ -213,7 +213,7 @@ def format_cornice_details(cornice_type: str, length: float, cost: float) -> str
     Returns:
         Отформатированная строка
     """
-    return f"• Карниз {cornice_type} ({length} м): {cost:,.0f} ₽\n"
+    return f"• Карниз {cornice_type} ({length} пог.м): {cost:,.0f} ₽\n"
 
 
 def format_spotlights_details(
@@ -246,9 +246,9 @@ def format_track_details(
     """Форматирует детали расчёта треков по типам."""
     lines = []
     if surface_len > 0:
-        lines.append(f"  - Накладные ({surface_len} м × {prices['surface']} ₽)")
+        lines.append(f"  - Накладные ({surface_len} пог.м × {prices['surface']} ₽)")
     if builtin_len > 0:
-        lines.append(f"  - Встроенные ({builtin_len} м × {prices['builtin']} ₽)")
+        lines.append(f"  - Встроенные ({builtin_len} пог.м × {prices['builtin']} ₽)")
     
     if not lines:
         return ""
@@ -257,7 +257,7 @@ def format_track_details(
 
 def format_light_lines_details(length: float, cost: float, price_per_m: int) -> str:
     """Форматирует детали расчёта световых линий."""
-    return f"• Световые линии ({length} м × {price_per_m} ₽): {cost:,.0f} ₽\n"
+    return f"• Световые линии ({length} пог.м × {price_per_m} ₽): {cost:,.0f} ₽\n"
 
 # Отчёт админу
 ADMIN_REPORT = """🔔 {title}

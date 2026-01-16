@@ -253,7 +253,7 @@ def get_edit_params_keyboard(data: dict) -> InlineKeyboardMarkup:
     profile_display = profile_names.get(profile, profile)
     
     cornice_names = {"pk5": "ПК-5", "am1": "АМ-1", "pk14": "ПК-14", "bpp": "БП-П", "bp40": "БП-40"}
-    cornice_display = f"{cornice_names.get(cornice, cornice)} ({cornice_length}м)" if cornice and cornice_length > 0 else "нет"
+    cornice_display = f"{cornice_names.get(cornice, cornice)} ({cornice_length} пог.м)" if cornice and cornice_length > 0 else "нет"
     
     spots_display = f"{spots_total} шт" if spots_total else "нет"
     track_display = f"{track_total} м" if track_total else "нет"

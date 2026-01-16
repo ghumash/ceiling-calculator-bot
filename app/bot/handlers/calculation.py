@@ -1140,7 +1140,7 @@ async def process_light_lines(message: Message, state: FSMContext) -> None:
     await state.update_data(light_lines=length, editing_mode=False)
     
     username = get_user_display_name(message.from_user)
-    chat_logger.log_message(user_id=message.from_user.id, username=username, message=f"Световые линии: {length} м", is_bot=False)
+    chat_logger.log_message(user_id=message.from_user.id, username=username, message=f"Световые линии: {length} пог.м", is_bot=False)
 
     response = LIGHT_LINES_ACCEPTED.format(length=length)
     await message.answer(response, parse_mode=ParseMode.HTML)
@@ -1307,17 +1307,17 @@ def _format_result_info(calculation: CalculationData) -> tuple[str, str, str]:
     
     total_tracks = calculation.track_surface_length + calculation.track_builtin_length
     if total_tracks > 0:
-        lighting_info += f"• Треки: {total_tracks} м\n"
+        lighting_info += f"• Треки: {total_tracks} пог.м\n"
         details = []
         if calculation.track_surface_length > 0:
-            details.append(f"  - Накладные ({calculation.track_surface_length} м)")
+            details.append(f"  - Накладные ({calculation.track_surface_length} пог.м)")
         if calculation.track_builtin_length > 0:
-            details.append(f"  - Встроенные ({calculation.track_builtin_length} м)")
+            details.append(f"  - Встроенные ({calculation.track_builtin_length} пог.м)")
         if details:
             lighting_info += "\n".join(details) + "\n"
     
     if calculation.light_lines > 0:
-        lighting_info += f"• Световые линии: {calculation.light_lines} м\n"
+        lighting_info += f"• Световые линии: {calculation.light_lines} пог.м\n"
     if calculation.chandeliers > 0:
         lighting_info += f"• Люстры: {calculation.chandeliers} шт\n"
 
