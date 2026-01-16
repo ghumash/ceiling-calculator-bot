@@ -380,7 +380,7 @@ async def skip_with_zero(callback: CallbackQuery, state: FSMContext) -> None:
         all_steps = data.get("all_lighting_steps", False)
         await state.update_data(light_lines=0, editing_mode=False)
         await callback.message.answer("✅ <b>Световые линии:</b> не требуются", parse_mode=ParseMode.HTML)
-        if editing_mode and data.get("wall_finish") is not None:
+        if editing_mode:
             await _show_result_after_edit(callback.message, state, callback.from_user)
         elif all_steps:
             await _ask_chandeliers(callback.message, state, user_id)
@@ -480,7 +480,7 @@ async def _process_area(message: Message, state: FSMContext, area: float, user_i
     await message.answer(response, parse_mode=ParseMode.HTML)
     chat_logger.log_message(user_id=user_id, username="БОТ", message=response, is_bot=True)
 
-    if editing_mode and data.get("profile_type"):
+    if editing_mode:
         await _show_result_after_edit(message, state, message.from_user)
     else:
         await _ask_profile(message, state, user_id)
@@ -534,7 +534,7 @@ async def process_profile(callback: CallbackQuery, state: FSMContext) -> None:
         user_id=callback.from_user.id, username="БОТ", message=response, is_bot=True
     )
 
-    if editing_mode and data.get("spotlights") is not None:
+    if editing_mode:
         await _show_result_after_edit(callback.message, state, callback.from_user)
     else:
         await _ask_cornice_type(callback.message, state, callback.from_user.id)
@@ -581,7 +581,7 @@ async def process_cornice_type(callback: CallbackQuery, state: FSMContext) -> No
             user_id=callback.from_user.id, username="БОТ", message=NO_CORNICE, is_bot=True
         )
         
-        if editing_mode and data.get("spotlights") is not None:
+        if editing_mode:
             await _show_result_after_edit(callback.message, state, callback.from_user)
         else:
             await _ask_lighting_types(callback.message, state, callback.from_user.id)
@@ -656,7 +656,7 @@ async def process_cornice_length(message: Message, state: FSMContext) -> None:
         user_id=message.from_user.id, username="БОТ", message=response, is_bot=True
     )
 
-    if editing_mode and data.get("spotlights") is not None:
+    if editing_mode:
         await _show_result_after_edit(message, state, message.from_user)
     else:
         await _ask_lighting_types(message, state, message.from_user.id)
@@ -848,12 +848,16 @@ async def spotlights_done(callback: CallbackQuery, state: FSMContext) -> None:
     await safe_answer_callback(callback)
     
     data = await state.get_data()
+    editing_mode = data.get("editing_mode", False)
     selected = set(data.get("selected_spotlight_types", set()))
     
     if not selected:
-        await state.update_data(spotlights_builtin=0, spotlights_surface=0, spotlights_pendant=0)
+        await state.update_data(spotlights_builtin=0, spotlights_surface=0, spotlights_pendant=0, editing_mode=False)
         await callback.message.answer(NO_SPOTLIGHTS, parse_mode=ParseMode.HTML)
-        await _process_next_lighting(callback.message, state, callback.from_user.id)
+        if editing_mode:
+            await _show_result_after_edit(callback.message, state, callback.from_user)
+        else:
+            await _process_next_lighting(callback.message, state, callback.from_user.id)
         return
     
     await _process_next_spotlight_type(callback.message, state, callback.from_user.id)
@@ -863,14 +867,20 @@ async def spotlights_done(callback: CallbackQuery, state: FSMContext) -> None:
 async def spotlights_skip(callback: CallbackQuery, state: FSMContext) -> None:
     """Пропускает светильники."""
     await safe_answer_callback(callback)
-    await state.update_data(spotlights_builtin=0, spotlights_surface=0, spotlights_pendant=0)
+    data = await state.get_data()
+    editing_mode = data.get("editing_mode", False)
+    await state.update_data(spotlights_builtin=0, spotlights_surface=0, spotlights_pendant=0, editing_mode=False)
     await callback.message.answer(NO_SPOTLIGHTS, parse_mode=ParseMode.HTML)
-    await _process_next_lighting(callback.message, state, callback.from_user.id)
+    if editing_mode:
+        await _show_result_after_edit(callback.message, state, callback.from_user)
+    else:
+        await _process_next_lighting(callback.message, state, callback.from_user.id)
 
 
 async def _process_next_spotlight_type(message: Message, state: FSMContext, user_id: int) -> None:
     """Переходит к следующему типу светильника."""
     data = await state.get_data()
+    editing_mode = data.get("editing_mode", False)
     selected = set(data.get("selected_spotlight_types", set()))
     order = ["builtin", "surface", "pendant"]
     
@@ -879,7 +889,12 @@ async def _process_next_spotlight_type(message: Message, state: FSMContext, user
             await _ask_spotlight_count(message, state, user_id, spot_type)
             return
     
-    await _process_next_lighting(message, state, user_id)
+    # Все типы обработаны
+    await state.update_data(editing_mode=False)
+    if editing_mode:
+        await _show_result_after_edit(message, state, message.from_user)
+    else:
+        await _process_next_lighting(message, state, user_id)
 
 
 async def _ask_spotlight_count(message: Message, state: FSMContext, user_id: int, spot_type: str) -> None:
@@ -989,12 +1004,16 @@ async def tracks_done(callback: CallbackQuery, state: FSMContext) -> None:
     await safe_answer_callback(callback)
     
     data = await state.get_data()
+    editing_mode = data.get("editing_mode", False)
     selected = set(data.get("selected_track_types", set()))
     
     if not selected:
-        await state.update_data(track_surface_length=0, track_builtin_length=0)
+        await state.update_data(track_surface_length=0, track_builtin_length=0, editing_mode=False)
         await callback.message.answer(NO_TRACKS, parse_mode=ParseMode.HTML)
-        await _process_next_lighting(callback.message, state, callback.from_user.id)
+        if editing_mode:
+            await _show_result_after_edit(callback.message, state, callback.from_user)
+        else:
+            await _process_next_lighting(callback.message, state, callback.from_user.id)
         return
     
     await _process_next_track_type(callback.message, state, callback.from_user.id)
@@ -1004,14 +1023,20 @@ async def tracks_done(callback: CallbackQuery, state: FSMContext) -> None:
 async def tracks_skip(callback: CallbackQuery, state: FSMContext) -> None:
     """Пропускает треки."""
     await safe_answer_callback(callback)
-    await state.update_data(track_surface_length=0, track_builtin_length=0)
+    data = await state.get_data()
+    editing_mode = data.get("editing_mode", False)
+    await state.update_data(track_surface_length=0, track_builtin_length=0, editing_mode=False)
     await callback.message.answer(NO_TRACKS, parse_mode=ParseMode.HTML)
-    await _process_next_lighting(callback.message, state, callback.from_user.id)
+    if editing_mode:
+        await _show_result_after_edit(callback.message, state, callback.from_user)
+    else:
+        await _process_next_lighting(callback.message, state, callback.from_user.id)
 
 
 async def _process_next_track_type(message: Message, state: FSMContext, user_id: int) -> None:
     """Переходит к следующему типу трека."""
     data = await state.get_data()
+    editing_mode = data.get("editing_mode", False)
     selected = set(data.get("selected_track_types", set()))
     order = ["surface", "builtin"]
     
@@ -1020,7 +1045,12 @@ async def _process_next_track_type(message: Message, state: FSMContext, user_id:
             await _ask_track_length(message, state, user_id, track_type)
             return
     
-    await _process_next_lighting(message, state, user_id)
+    # Все типы обработаны
+    await state.update_data(editing_mode=False)
+    if editing_mode:
+        await _show_result_after_edit(message, state, message.from_user)
+    else:
+        await _process_next_lighting(message, state, user_id)
 
 
 async def _ask_track_length(message: Message, state: FSMContext, user_id: int, track_type: str) -> None:
@@ -1118,7 +1148,7 @@ async def process_light_lines(message: Message, state: FSMContext) -> None:
 
     all_steps = data.get("all_lighting_steps", False)
     
-    if editing_mode and data.get("wall_finish") is not None:
+    if editing_mode:
         await _show_result_after_edit(message, state, message.from_user)
     elif all_steps:
         await _ask_chandeliers(message, state, message.from_user.id)
@@ -1191,7 +1221,7 @@ async def _process_chandeliers(
     await message.answer(response, parse_mode=ParseMode.HTML)
     chat_logger.log_message(user_id=user.id, username="БОТ", message=response, is_bot=True)
 
-    if editing_mode and data.get("wall_finish") is not None:
+    if editing_mode:
         await _show_result_after_edit(message, state, user)
     else:
         await _ask_wall_finish(message, state, user.id)
