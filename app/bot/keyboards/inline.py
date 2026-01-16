@@ -23,12 +23,12 @@ def get_skip_keyboard() -> InlineKeyboardMarkup:
 
 
 def get_skip_row_keyboard() -> InlineKeyboardMarkup:
-    """Клавиатура с кнопками 'Пропустить' и 'Назад' в один ряд."""
+    """Клавиатура с кнопками 'Назад' и 'Пропустить' в один ряд."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text="Пропустить", callback_data="skip_zero"),
                 InlineKeyboardButton(text="⬅️ Назад", callback_data="go_back"),
+                InlineKeyboardButton(text="Пропустить", callback_data="skip_zero"),
             ],
         ]
     )
@@ -105,16 +105,18 @@ def get_cornice_keyboard() -> InlineKeyboardMarkup:
 
 def get_track_type_keyboard() -> InlineKeyboardMarkup:
     """Клавиатура выбора типа треков."""
-    keyboard = InlineKeyboardMarkup(
+    return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(text="Накладные", callback_data="track_surface"),
                 InlineKeyboardButton(text="Встроенные", callback_data="track_built_in"),
             ],
-            [InlineKeyboardButton(text="Пропустить", callback_data="track_none")],
+            [
+                InlineKeyboardButton(text="⬅️ Назад", callback_data="go_back"),
+                InlineKeyboardButton(text="Пропустить", callback_data="track_none"),
+            ],
         ]
     )
-    return add_back_button(keyboard)
 
 
 def get_wall_finish_keyboard() -> InlineKeyboardMarkup:
