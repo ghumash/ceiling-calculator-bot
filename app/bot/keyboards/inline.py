@@ -149,18 +149,39 @@ def get_lighting_types_keyboard(selected: set[str]) -> InlineKeyboardMarkup:
     )
 
 
-def get_track_type_keyboard() -> InlineKeyboardMarkup:
-    """Клавиатура выбора типа треков."""
+def get_spotlight_types_keyboard(selected: set[str]) -> InlineKeyboardMarkup:
+    """Клавиатура мультивыбора типов светильников."""
+    def mark(key: str, label: str) -> str:
+        return f"✅ {label}" if key in selected else label
+    
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [
-                InlineKeyboardButton(text="Накладные", callback_data="track_surface"),
-                InlineKeyboardButton(text="Встроенные", callback_data="track_built_in"),
-            ],
+            [InlineKeyboardButton(text=mark("builtin", "Встроенные"), callback_data="toggle_spot_builtin")],
+            [InlineKeyboardButton(text=mark("surface", "Накладные"), callback_data="toggle_spot_surface")],
+            [InlineKeyboardButton(text=mark("pendant", "Подвесные"), callback_data="toggle_spot_pendant")],
             [
                 InlineKeyboardButton(text="⬅️ Назад", callback_data="go_back"),
-                InlineKeyboardButton(text="Пропустить ➡️", callback_data="track_none"),
+                InlineKeyboardButton(text="Пропустить ➡️", callback_data="spotlights_skip"),
             ],
+            [InlineKeyboardButton(text="Готово ✅", callback_data="spotlights_done")],
+        ]
+    )
+
+
+def get_track_types_keyboard(selected: set[str]) -> InlineKeyboardMarkup:
+    """Клавиатура мультивыбора типов треков."""
+    def mark(key: str, label: str) -> str:
+        return f"✅ {label}" if key in selected else label
+    
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=mark("surface", "Накладные"), callback_data="toggle_track_surface")],
+            [InlineKeyboardButton(text=mark("builtin", "Встроенные"), callback_data="toggle_track_builtin")],
+            [
+                InlineKeyboardButton(text="⬅️ Назад", callback_data="go_back"),
+                InlineKeyboardButton(text="Пропустить ➡️", callback_data="tracks_skip"),
+            ],
+            [InlineKeyboardButton(text="Готово ✅", callback_data="tracks_done")],
         ]
     )
 
@@ -212,9 +233,18 @@ def get_edit_params_keyboard(data: dict) -> InlineKeyboardMarkup:
     profile = data.get("profile_type", "—")
     cornice = data.get("cornice_type")
     cornice_length = data.get("cornice_length", 0)
-    spotlights = data.get("spotlights", 0)
-    track_type = data.get("track_type")
-    track_length = data.get("track_length", 0)
+    
+    # Светильники по типам
+    spots_builtin = data.get("spotlights_builtin", 0)
+    spots_surface = data.get("spotlights_surface", 0)
+    spots_pendant = data.get("spotlights_pendant", 0)
+    spots_total = spots_builtin + spots_surface + spots_pendant
+    
+    # Треки по типам
+    track_surface = data.get("track_surface_length", 0)
+    track_builtin = data.get("track_builtin_length", 0)
+    track_total = track_surface + track_builtin
+    
     light_lines = data.get("light_lines", 0)
     chandeliers = data.get("chandeliers", 0)
     wall_finish = data.get("wall_finish")
@@ -225,9 +255,8 @@ def get_edit_params_keyboard(data: dict) -> InlineKeyboardMarkup:
     cornice_names = {"pk5": "ПК-5", "am1": "АМ-1", "pk14": "ПК-14", "bpp": "БП-П", "bp40": "БП-40"}
     cornice_display = f"{cornice_names.get(cornice, cornice)} ({cornice_length}м)" if cornice and cornice_length > 0 else "нет"
     
-    track_names = {"surface": "Накладные", "built_in": "Встроенные"}
-    track_display = f"{track_names.get(track_type, '')} ({track_length}м)" if track_type else "нет"
-    
+    spots_display = f"{spots_total} шт" if spots_total else "нет"
+    track_display = f"{track_total} м" if track_total else "нет"
     light_display = f"{light_lines} м" if light_lines else "нет"
     wall_display = "Да" if wall_finish else "Нет"
     
@@ -236,7 +265,7 @@ def get_edit_params_keyboard(data: dict) -> InlineKeyboardMarkup:
             [InlineKeyboardButton(text=f"📐 Площадь: {area} м²", callback_data="edit_area")],
             [InlineKeyboardButton(text=f"🔲 Профиль: {profile_display}", callback_data="edit_profile")],
             [InlineKeyboardButton(text=f"📏 Карниз: {cornice_display}", callback_data="edit_cornice")],
-            [InlineKeyboardButton(text=f"💡 Светильники: {spotlights} шт", callback_data="edit_spotlights")],
+            [InlineKeyboardButton(text=f"💡 Светильники: {spots_display}", callback_data="edit_spotlights")],
             [InlineKeyboardButton(text=f"🚃 Треки: {track_display}", callback_data="edit_tracks")],
             [InlineKeyboardButton(text=f"💫 Световые линии: {light_display}", callback_data="edit_light_lines")],
             [InlineKeyboardButton(text=f"🔦 Люстры: {chandeliers} шт", callback_data="edit_chandeliers")],

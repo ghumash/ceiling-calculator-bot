@@ -21,13 +21,15 @@ class CalculationData(BaseModel):
     cornice_type: str | None = Field(default=None, description="Тип карниза: pk14/pk5/bp40")
     cornice_cost: float = Field(default=0, description="Стоимость карнизов")
 
-    # Освещение
-    spotlights: int = Field(default=0, ge=0, description="Количество точечных светильников")
+    # Светильники по типам
+    spotlights_builtin: int = Field(default=0, ge=0, description="Встроенные светильники")
+    spotlights_surface: int = Field(default=0, ge=0, description="Накладные светильники")
+    spotlights_pendant: int = Field(default=0, ge=0, description="Подвесные светильники")
     spotlights_cost: float = Field(default=0, description="Стоимость установки светильников")
 
-    # Треки
-    track_type: str | None = Field(default=None, description="Тип треков: surface/built_in")
-    track_length: float = Field(default=0, ge=0, description="Длина треков в м")
+    # Треки по типам
+    track_surface_length: float = Field(default=0, ge=0, description="Длина накладных треков")
+    track_builtin_length: float = Field(default=0, ge=0, description="Длина встроенных треков")
     track_cost: float = Field(default=0, description="Стоимость треков")
 
     # Световые линии

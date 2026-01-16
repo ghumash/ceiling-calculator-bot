@@ -22,10 +22,16 @@ class CalculationStates(StatesGroup):
     # Освещение - выбор типов
     choosing_lighting_types = State()
 
-    # Освещение - детали
-    entering_spotlights = State()
-    choosing_track_type = State()
-    entering_track_length = State()
+    # Светильники
+    choosing_spotlight_types = State()
+    entering_spotlights_builtin = State()
+    entering_spotlights_surface = State()
+    entering_spotlights_pendant = State()
+
+    # Треки
+    choosing_track_types = State()
+    entering_track_surface_length = State()
+    entering_track_builtin_length = State()
     entering_light_lines = State()
     entering_chandeliers = State()
     choosing_wall_finish = State()

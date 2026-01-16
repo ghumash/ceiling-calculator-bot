@@ -67,20 +67,26 @@ def calculate_cornice_cost(length: float, cornice_type: str | None) -> float:
     return length * cornice_prices.get(cornice_type, 0)
 
 
-def calculate_lighting_cost(spotlights: int, chandeliers: int) -> tuple[float, float]:
-    """Рассчитывает стоимость освещения."""
-    return spotlights * settings.spotlight_price, chandeliers * settings.chandelier_price
+def calculate_spotlights_cost(builtin: int, surface: int, pendant: int) -> float:
+    """Рассчитывает стоимость светильников по типам."""
+    return (
+        builtin * settings.spotlight_builtin_price +
+        surface * settings.spotlight_surface_price +
+        pendant * settings.spotlight_pendant_price
+    )
 
 
-def calculate_track_cost(length: float, track_type: str | None) -> float:
-    """Рассчитывает стоимость треков."""
-    if length == 0 or not track_type:
-        return 0.0
-    track_prices = {
-        "surface": settings.track_surface_price,
-        "built_in": settings.track_built_in_price,
-    }
-    return length * track_prices.get(track_type, 0)
+def calculate_chandeliers_cost(chandeliers: int) -> float:
+    """Рассчитывает стоимость люстр."""
+    return chandeliers * settings.chandelier_price
+
+
+def calculate_tracks_cost(surface_length: float, builtin_length: float) -> float:
+    """Рассчитывает стоимость треков по типам."""
+    return (
+        surface_length * settings.track_surface_price +
+        builtin_length * settings.track_built_in_price
+    )
 
 
 def calculate_light_lines_cost(length: float) -> float:
@@ -90,26 +96,35 @@ def calculate_light_lines_cost(length: float) -> float:
 
 def calculate_total(data: dict) -> CalculationData:
     """Выполняет полный расчёт стоимости."""
-    area = data["area"]
+    area = data.get("area", 0.0)
+    if area <= 0:
+        raise ValueError("Площадь помещения не указана или некорректна")
+    
     area_for_calculation, ceiling_cost = calculate_area_cost(area)
 
-    profile_type = data["profile_type"]
+    profile_type = data.get("profile_type", "insert")
     profile_cost = calculate_profile_cost(area, profile_type)
 
     cornice_length = data.get("cornice_length", 0)
     cornice_type = data.get("cornice_type")
     cornice_cost = calculate_cornice_cost(cornice_length, cornice_type)
 
-    spotlights = data.get("spotlights", 0)
-    chandeliers = data.get("chandeliers", 0)
-    spotlights_cost, chandeliers_cost = calculate_lighting_cost(spotlights, chandeliers)
+    # Светильники по типам
+    spotlights_builtin = data.get("spotlights_builtin", 0)
+    spotlights_surface = data.get("spotlights_surface", 0)
+    spotlights_pendant = data.get("spotlights_pendant", 0)
+    spotlights_cost = calculate_spotlights_cost(spotlights_builtin, spotlights_surface, spotlights_pendant)
 
-    track_type = data.get("track_type")
-    track_length = data.get("track_length", 0)
-    track_cost = calculate_track_cost(track_length, track_type)
+    # Треки по типам
+    track_surface_length = data.get("track_surface_length", 0)
+    track_builtin_length = data.get("track_builtin_length", 0)
+    track_cost = calculate_tracks_cost(track_surface_length, track_builtin_length)
 
     light_lines = data.get("light_lines", 0)
     light_lines_cost = calculate_light_lines_cost(light_lines)
+
+    chandeliers = data.get("chandeliers", 0)
+    chandeliers_cost = calculate_chandeliers_cost(chandeliers)
 
     wall_finish = data.get("wall_finish", False)
 
@@ -126,10 +141,12 @@ def calculate_total(data: dict) -> CalculationData:
         cornice_length=cornice_length,
         cornice_type=cornice_type,
         cornice_cost=cornice_cost,
-        spotlights=spotlights,
+        spotlights_builtin=spotlights_builtin,
+        spotlights_surface=spotlights_surface,
+        spotlights_pendant=spotlights_pendant,
         spotlights_cost=spotlights_cost,
-        track_type=track_type,
-        track_length=track_length,
+        track_surface_length=track_surface_length,
+        track_builtin_length=track_builtin_length,
         track_cost=track_cost,
         light_lines=light_lines,
         light_lines_cost=light_lines_cost,

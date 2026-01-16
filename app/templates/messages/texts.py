@@ -94,25 +94,37 @@ LIGHTING_TYPES_SELECTED = """✅ <b>Выбрано освещение:</b> {type
 
 NO_LIGHTING = """✅ <b>Освещение:</b> не требуется"""
 
-# Освещение - Светильники
-SPOTLIGHTS_QUESTION = """Сколько <b>закладных под точечных светильников</b> нужно установить?"""
+# Светильники - выбор типов
+SPOTLIGHT_TYPES_QUESTION = """Выберите <b>вид точечных светильников</b>
 
-SPOTLIGHTS_ACCEPTED = """✅ <b>Светильники:</b> {count} шт"""
+Выберите нужные варианты и нажмите <b>Готово</b>"""
+
+NO_SPOTLIGHTS = """✅ <b>Светильники:</b> не требуются"""
+
+SPOTLIGHTS_BUILTIN_QUESTION = """Сколько <b>встроенных светильников</b> нужно установить?"""
+SPOTLIGHTS_SURFACE_QUESTION = """Сколько <b>накладных светильников</b> нужно установить?"""
+SPOTLIGHTS_PENDANT_QUESTION = """Сколько <b>подвесных светильников</b> нужно установить?"""
+
+SPOTLIGHTS_ACCEPTED = """✅ <b>{spot_type}:</b> {count} шт"""
 
 SPOTLIGHTS_INVALID_INPUT = "❌ Пожалуйста, укажите <b>целое число</b>\n\n💡 <i>Например: 8</i>"
 
-# Треки
-TRACK_TYPE_QUESTION = """Выберите <b>тип трековых линий:</b>"""
+# Треки - выбор типов
+TRACK_TYPES_QUESTION = """Выберите <b>вид трековых линий</b>
 
-TRACK_TYPE_ACCEPTED = """✅ <b>Тип треков:</b> {track_type}"""
+Выберите нужные варианты и нажмите <b>Готово</b>"""
 
 NO_TRACKS = """✅ <b>Треки:</b> не требуются"""
 
-TRACK_LENGTH_QUESTION = """Укажите <b>общую длину треков</b>
+TRACK_SURFACE_LENGTH_QUESTION = """Укажите <b>длину накладных треков</b>
 
 💡 <i>Например: 5.5</i>"""
 
-TRACK_LENGTH_ACCEPTED = """✅ <b>Длина треков:</b> {length} м"""
+TRACK_BUILTIN_LENGTH_QUESTION = """Укажите <b>длину встроенных треков</b>
+
+💡 <i>Например: 5.5</i>"""
+
+TRACK_LENGTH_ACCEPTED = """✅ <b>{track_type}:</b> {length} м"""
 
 TRACK_INVALID_INPUT = "❌ Пожалуйста, укажите <b>число</b>\n\n💡 <i>Например: 5.5</i>"
 
@@ -204,18 +216,22 @@ def format_cornice_details(cornice_type: str, length: float, cost: float) -> str
     return f"• Карниз {cornice_type} ({length} м): {cost:,.0f} ₽\n"
 
 
-def format_spotlights_details(count: int, cost: float, price_per_unit: int) -> str:
-    """Форматирует детали расчёта светильников.
+def format_spotlights_details(
+    builtin: int, surface: int, pendant: int, 
+    cost: float, prices: dict
+) -> str:
+    """Форматирует детали расчёта светильников по типам."""
+    lines = []
+    if builtin > 0:
+        lines.append(f"  - Встроенные ({builtin} шт × {prices['builtin']} ₽)")
+    if surface > 0:
+        lines.append(f"  - Накладные ({surface} шт × {prices['surface']} ₽)")
+    if pendant > 0:
+        lines.append(f"  - Подвесные ({pendant} шт × {prices['pendant']} ₽)")
     
-    Args:
-        count: Количество
-        cost: Стоимость
-        price_per_unit: Цена за штуку
-        
-    Returns:
-        Отформатированная строка
-    """
-    return f"• Светильники ({count} шт × {price_per_unit} ₽): {cost:,.0f} ₽\n"
+    if not lines:
+        return ""
+    return f"• Светильники: {cost:,.0f} ₽\n" + "\n".join(lines) + "\n"
 
 
 def format_chandeliers_details(count: int, cost: float, price_per_unit: int) -> str:
@@ -223,9 +239,20 @@ def format_chandeliers_details(count: int, cost: float, price_per_unit: int) -> 
     return f"• Люстры ({count} шт × {price_per_unit} ₽): {cost:,.0f} ₽\n"
 
 
-def format_track_details(track_type: str, length: float, cost: float, price_per_m: int) -> str:
-    """Форматирует детали расчёта треков."""
-    return f"• Треки {track_type} ({length} м × {price_per_m} ₽): {cost:,.0f} ₽\n"
+def format_track_details(
+    surface_len: float, builtin_len: float, 
+    cost: float, prices: dict
+) -> str:
+    """Форматирует детали расчёта треков по типам."""
+    lines = []
+    if surface_len > 0:
+        lines.append(f"  - Накладные ({surface_len} м × {prices['surface']} ₽)")
+    if builtin_len > 0:
+        lines.append(f"  - Встроенные ({builtin_len} м × {prices['builtin']} ₽)")
+    
+    if not lines:
+        return ""
+    return f"• Треки: {cost:,.0f} ₽\n" + "\n".join(lines) + "\n"
 
 
 def format_light_lines_details(length: float, cost: float, price_per_m: int) -> str:
