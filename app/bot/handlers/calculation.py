@@ -506,7 +506,8 @@ async def _ask_spotlights(message: Message, state: FSMContext, user_id: int) -> 
     previous_state = _get_previous_lighting_state(data)
     await state.update_data(previous_state=previous_state)
     
-    await send_image_if_exists(message, settings.lighting_dir / "spotlights.jpg")
+    lighting_path = Path(settings.lighting_dir)
+    await send_image_if_exists(message, lighting_path / "spotlights.jpg")
     await message.answer(SPOTLIGHTS_QUESTION, reply_markup=get_skip_row_keyboard(), parse_mode=ParseMode.HTML)
     await state.set_state(CalculationStates.entering_spotlights)
 
