@@ -16,6 +16,7 @@ from app.bot.keyboards.inline import (
     get_result_keyboard,
     get_back_keyboard,
     get_skip_keyboard,
+    get_skip_row_keyboard,
     get_contact_method_keyboard,
     get_edit_params_keyboard,
     get_track_type_keyboard,
@@ -500,12 +501,13 @@ async def process_cornice_length(message: Message, state: FSMContext) -> None:
 
 
 async def _ask_spotlights(message: Message, state: FSMContext, user_id: int) -> None:
-    """Запрашивает количество точечных светильников."""
+    """Запрашивает количество закладных под точечные светильники."""
     data = await state.get_data()
     previous_state = _get_previous_lighting_state(data)
     await state.update_data(previous_state=previous_state)
     
-    await message.answer(SPOTLIGHTS_QUESTION, reply_markup=get_skip_keyboard(), parse_mode=ParseMode.HTML)
+    await send_image_if_exists(message, settings.lighting_dir / "spotlights.jpg")
+    await message.answer(SPOTLIGHTS_QUESTION, reply_markup=get_skip_row_keyboard(), parse_mode=ParseMode.HTML)
     await state.set_state(CalculationStates.entering_spotlights)
 
     chat_logger.log_message(
@@ -708,7 +710,7 @@ async def process_light_lines(message: Message, state: FSMContext) -> None:
 async def _ask_chandeliers(message: Message, state: FSMContext, user_id: int) -> None:
     """Запрашивает количество люстр."""
     await state.update_data(previous_state=CalculationStates.entering_light_lines)
-    await message.answer(CHANDELIERS_QUESTION, reply_markup=get_skip_keyboard(), parse_mode=ParseMode.HTML)
+    await message.answer(CHANDELIERS_QUESTION, reply_markup=get_skip_row_keyboard(), parse_mode=ParseMode.HTML)
     await state.set_state(CalculationStates.entering_chandeliers)
     chat_logger.log_message(user_id=user_id, username="БОТ", message=CHANDELIERS_QUESTION, is_bot=True)
 

@@ -22,6 +22,18 @@ def get_skip_keyboard() -> InlineKeyboardMarkup:
     )
 
 
+def get_skip_row_keyboard() -> InlineKeyboardMarkup:
+    """Клавиатура с кнопками 'Пропустить' и 'Назад' в один ряд."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="Пропустить", callback_data="skip_zero"),
+                InlineKeyboardButton(text="⬅️ Назад", callback_data="go_back"),
+            ],
+        ]
+    )
+
+
 def add_back_button(keyboard: InlineKeyboardMarkup) -> InlineKeyboardMarkup:
     """Добавляет кнопку 'Назад' в клавиатуру.
     
